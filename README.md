@@ -113,3 +113,11 @@ The save format knowledge comes from
 [zcanann/FFCC-Decomp](https://github.com/zcanann/FFCC-Decomp). The GCI container
 layout and the folder-loading rules come from
 [Dolphin](https://github.com/dolphin-emu/dolphin).
+
+## License
+
+[MIT](LICENSE).
+
+This is an unofficial fan project, not affiliated with or endorsed by Square
+Enix or Nintendo. Final Fantasy Crystal Chronicles and the item names used
+here belong to their respective owners.
