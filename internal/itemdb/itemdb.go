@@ -1,8 +1,10 @@
-// Package itemdb is the table of item IDs and their names.
+// Package itemdb is the game's item table as far as the editor needs it:
+// the name of every item ID and the game's own description of it.
 //
-// The names are the PAL English strings, in item ID order, taken from the
-// FFCC decompilation (gba/src/cli/main/msg_item.c). They are used for
-// display only.
+// Both come from the GBA client in the FFCC decompilation. The names are
+// the PAL English strings in item ID order (gba/src/cli/main/msg_item.c).
+// The descriptions, in desc.go, say what each item is, and are the
+// evidence the editor uses to decide which items it may add.
 package itemdb
 
 import (

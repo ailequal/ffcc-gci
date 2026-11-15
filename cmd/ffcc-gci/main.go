@@ -1,5 +1,18 @@
-// Command ffcc-gci inspects and edits Final Fantasy Crystal Chronicles
-// (GameCube) save files stored in Dolphin's .gci format.
+// Ffcc-gci is a save editor for Final Fantasy Crystal Chronicles on the
+// GameCube. It works on save files in Dolphin's .gci format and supports
+// the European (PAL) version of the game only.
+//
+// It changes only what the game's own code is known to accept: a
+// character's gil, artifacts and ordinary inventory items. Every value
+// has a fixed range, and an edit never destroys the original save.
+//
+// Usage:
+//
+//	ffcc-gci <command> [arguments]
+//
+// Run "ffcc-gci help" for the list of commands and "ffcc-gci help
+// <command>" for the flags and examples of one. The same reference is in
+// docs/USAGE.md.
 package main
 
 import (

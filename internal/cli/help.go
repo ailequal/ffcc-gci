@@ -1,0 +1,275 @@
+package cli
+
+import (
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/ailequal/ffcc-gci/internal/itemdb"
+	"github.com/ailequal/ffcc-gci/internal/save"
+)
+
+// helpWidth is the line width help text is wrapped to.
+const helpWidth = 78
+
+// tagline says in one line what the program is.
+const tagline = "save editor for Final Fantasy Crystal Chronicles (GameCube, PAL)"
+
+// beforeYouStart is what a user has to know before editing a save.
+var beforeYouStart = []string{
+	"Only saves of the European (PAL) version of the game are supported. Others are refused.",
+	"Close Dolphin, or at least stop the game, before editing. Dolphin keeps the save in " +
+		"memory while a game runs and writes it back, which would undo the edit.",
+	"The save Dolphin uses is a .gci file in its GCI folder, usually GC/EUR/Card A/ inside " +
+		"Dolphin's user directory.",
+	"An edit in place first copies the original to <save.gci>.<date-time>.bak. To undo an " +
+		"edit, copy that backup back over the save.",
+}
+
+// exitCodes documents the process exit codes.
+var exitCodes = []struct {
+	code int
+	text string
+}{
+	{ExitOK, "The command succeeded. This includes an edit that was not needed, such as an artifact the character already has."},
+	{ExitError, "The command ran and failed, for example on an unsupported save or an empty slot. Nothing was written."},
+	{ExitUsage, "The command line was wrong: an unknown command, a missing flag or a value outside its range. Nothing was written."},
+}
+
+// wrap breaks text into lines of at most width characters, each starting
+// with indent.
+func wrap(text string, width int, indent string) string {
+	var b strings.Builder
+	line := indent
+	for _, word := range strings.Fields(text) {
+		switch {
+		case line == indent:
+			line += word
+		case len(line)+1+len(word) > width:
+			b.WriteString(line + "\n")
+			line = indent + word
+		default:
+			line += " " + word
+		}
+	}
+	b.WriteString(line)
+	return b.String()
+}
+
+// overview returns the text shown for "ffcc-gci help": what the program
+// is and which commands it has.
+func overview() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "ffcc-gci - %s\n\nUsage:\n  ffcc-gci <command> [arguments]\n\nCommands:\n", tagline)
+	for _, list := range [][]*command{commands, builtins} {
+		for _, c := range list {
+			fmt.Fprintf(&b, "  %-12s  %s\n", c.name, c.summary)
+		}
+	}
+	b.WriteString("\n" + wrap(`Run "ffcc-gci help <command>" for the flags and examples of a command, or `+
+		`"ffcc-gci help -all" for every command at once.`, helpWidth, "") + "\n")
+	return b.String()
+}
+
+// help returns the help text of the command.
+func (c *command) help() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s.\n\nUsage:\n  %s\n", c.summary, c.usageLine())
+
+	if flags := c.allFlags(); len(flags) > 0 {
+		b.WriteString("\nFlags:\n")
+		for _, f := range flags {
+			fmt.Fprintf(&b, "  %s\n%s\n", flagForm(f), wrap(f.text, helpWidth, "      "))
+		}
+	}
+	for _, note := range c.allNotes() {
+		b.WriteString("\n" + wrap(note, helpWidth, "") + "\n")
+	}
+	if len(c.examples) > 0 {
+		b.WriteString("\nExamples:\n")
+		for i, ex := range c.examples {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			fmt.Fprintf(&b, "  # %s\n  %s\n", ex.note, ex.line)
+		}
+	}
+	return b.String()
+}
+
+// flagForm returns a flag as it is typed, such as "-gil <amount>".
+func flagForm(f flagDoc) string {
+	if f.value == "" {
+		return "-" + f.name
+	}
+	return "-" + f.name + " " + f.value
+}
+
+// fullHelp returns the overview followed by the help of every command.
+func fullHelp() string {
+	var b strings.Builder
+	b.WriteString(overview())
+	for _, list := range [][]*command{commands, builtins} {
+		for _, c := range list {
+			fmt.Fprintf(&b, "\n%s\n%s\n\n%s", strings.Repeat("-", helpWidth), c.name, c.help())
+		}
+	}
+	return b.String()
+}
+
+func runHelp(args []string, stdout, stderr io.Writer) error {
+	c := findCommand(builtins, "help")
+	fs := c.flagSet(stderr)
+	all := fs.Bool("all", false, "")
+	markdown := fs.Bool("markdown", false, "")
+
+	topics, err := c.parse(fs, args, stdout)
+	if err != nil {
+		return err
+	}
+	if len(topics) > 1 || (len(topics) == 1 && (*all || *markdown)) || (*all && *markdown) {
+		return usagef("help takes one command, -all or -markdown")
+	}
+
+	switch {
+	case *markdown:
+		fmt.Fprint(stdout, usageMarkdown())
+	case *all:
+		fmt.Fprint(stdout, fullHelp())
+	case len(topics) == 0:
+		fmt.Fprint(stdout, overview())
+	default:
+		topic := findCommand(commands, topics[0])
+		if topic == nil {
+			topic = findCommand(builtins, topics[0])
+		}
+		if topic == nil {
+			return usagef("there is no command %q; run \"ffcc-gci help\" for the list", topics[0])
+		}
+		fmt.Fprint(stdout, topic.help())
+	}
+	return nil
+}
+
+// usageMarkdown returns the full reference in Markdown: every command
+// with its flags and examples, the exit codes, and every value the
+// program accepts. docs/USAGE.md is this text.
+func usageMarkdown() string {
+	var b strings.Builder
+	b.WriteString("<!-- Generated by \"make docs\" from the program's own help. Do not edit by hand. -->\n\n")
+	b.WriteString("# ffcc-gci usage\n\n")
+	fmt.Fprintf(&b, "ffcc-gci is a %s.\n\n", tagline)
+	b.WriteString("This page lists every command, flag and accepted value. The program prints the same " +
+		"information with `ffcc-gci help -all`, and the help of one command with " +
+		"`ffcc-gci help <command>`.\n\n")
+
+	b.WriteString("## Before you start\n\n")
+	for _, line := range beforeYouStart {
+		fmt.Fprintf(&b, "- %s\n", mdText(line))
+	}
+
+	b.WriteString("\n## Commands\n\n| Command | What it does |\n|---|---|\n")
+	for _, list := range [][]*command{commands, builtins} {
+		for _, c := range list {
+			fmt.Fprintf(&b, "| [`%s`](#%s) | %s. |\n", c.name, c.name, mdText(c.summary))
+		}
+	}
+	b.WriteString("\nFlags can be written before or after the save file, and with one dash or two " +
+		"(`-slot` or `--slot`).\n")
+
+	for _, list := range [][]*command{commands, builtins} {
+		for _, c := range list {
+			fmt.Fprintf(&b, "\n### %s\n\n%s.\n\n```sh\n%s\n```\n", c.name, mdText(c.summary), c.usageLine())
+			if flags := c.allFlags(); len(flags) > 0 {
+				b.WriteString("\n| Flag | Meaning |\n|---|---|\n")
+				for _, f := range flags {
+					fmt.Fprintf(&b, "| `%s` | %s |\n", flagForm(f), mdText(f.text))
+				}
+			}
+			for _, note := range c.allNotes() {
+				fmt.Fprintf(&b, "\n%s\n", mdText(note))
+			}
+			if len(c.examples) > 0 {
+				b.WriteString("\nExamples:\n\n```sh\n")
+				for i, ex := range c.examples {
+					if i > 0 {
+						b.WriteString("\n")
+					}
+					fmt.Fprintf(&b, "# %s\n%s\n", ex.note, ex.line)
+				}
+				b.WriteString("```\n")
+			}
+		}
+	}
+
+	b.WriteString("\n## Exit codes\n\n| Code | Meaning |\n|---|---|\n")
+	for _, e := range exitCodes {
+		fmt.Fprintf(&b, "| %d | %s |\n", e.code, mdText(e.text))
+	}
+
+	b.WriteString("\n## Accepted values\n\n")
+	b.WriteString("Every value the program can set has a fixed range, taken from the game's own code. " +
+		"A value outside its range is refused and nothing is written. `ffcc-gci limits` prints " +
+		"this table.\n\n| Value | Accepted range | Why it is safe |\n|---|---|---|\n")
+	for _, l := range save.Limits() {
+		fmt.Fprintf(&b, "| %s | %s | %s |\n", mdText(upperFirst(l.Name)), rangeText(l), mdText(l.Source))
+	}
+	fmt.Fprintf(&b, "| Slot | 1 to %d | The slot must hold a save the game would load. Empty and damaged slots are refused. |\n", save.SlotCount)
+	fmt.Fprintf(&b, "| Character | 1 to %d, or a name | The character must exist in the slot. Characters are never created. |\n", save.CharacterCount)
+
+	b.WriteString("\n## Artifacts\n\n")
+	fmt.Fprintf(&b, "The %d artifacts `add-artifact` can grant, with the game's description of each. "+
+		"`ffcc-gci artifacts` prints this list.\n", save.ArtifactLimit.Max-save.ArtifactLimit.Min+1)
+	group := ""
+	for id := save.ArtifactLimit.Min; id <= save.ArtifactLimit.Max; id++ {
+		if effect, _ := itemdb.ArtifactEffect(id); effect != group {
+			fmt.Fprintf(&b, "\n### %s\n\n| Item ID | Name | Description |\n|---|---|---|\n", effect)
+			group = effect
+		}
+		desc, _ := itemdb.Description(id)
+		fmt.Fprintf(&b, "| %d | %s | %s |\n", id, mdText(itemName(id)), mdText(desc))
+	}
+
+	b.WriteString("\n## Items\n\n")
+	fmt.Fprintf(&b, "The %d items `add-item` can add. `ffcc-gci items` prints this list. Everything "+
+		"else in the game's item table is refused for safety.\n", len(addableIDs()))
+	kind := itemdb.KindOther
+	for _, id := range addableIDs() {
+		if k := itemdb.KindOf(id); k != kind {
+			kind = k
+			if kind == itemdb.KindDesign {
+				fmt.Fprintf(&b, "\n### %s\n\n| Item ID | Name | Who can forge it |\n|---|---|---|\n", kind)
+			} else {
+				fmt.Fprintf(&b, "\n### %s\n\n| Item ID | Name |\n|---|---|\n", kind)
+			}
+		}
+		if kind == itemdb.KindDesign {
+			desc, _ := itemdb.Description(id)
+			fmt.Fprintf(&b, "| %d | %s | %s |\n", id, mdText(itemName(id)), mdText(desc))
+		} else {
+			fmt.Fprintf(&b, "| %d | %s |\n", id, mdText(itemName(id)))
+		}
+	}
+	return b.String()
+}
+
+// mdText escapes the characters of plain text that Markdown would read as
+// markup inside a table cell or a paragraph.
+func mdText(text string) string {
+	return strings.NewReplacer("|", `\|`, "<", `\<`, ">", `\>`, "*", `\*`, "_", `\_`).Replace(text)
+}
+
+func upperFirst(text string) string {
+	if text == "" {
+		return text
+	}
+	return strings.ToUpper(text[:1]) + text[1:]
+}
+
+// rangeText formats the range of a limit as "0 to 64".
+func rangeText(l save.Limit) string {
+	if l.Min == l.Max {
+		return fmt.Sprint(l.Min)
+	}
+	return fmt.Sprintf("%d to %d", l.Min, l.Max)
+}

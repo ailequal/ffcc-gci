@@ -43,7 +43,7 @@ var ItemLimits = []Limit{
 		Name: "material item ID", Min: FirstMaterial, Max: LastMaterial,
 		Source: "The game describes each of these 58 items as \"Material for equipment\". The " +
 			"blacksmith counts how many of a material a character holds, so holding several of " +
-			"one is how the game is meant to work (Smith_ForgeDrawRow in the GBA client).",
+			"one is how the game is meant to work (SmithForgeScreen_PrintNextRow in the GBA client).",
 	},
 	{
 		Name: "food item ID", Min: FirstFood, Max: LastFood,

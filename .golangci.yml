@@ -1,0 +1,8 @@
+version: "2"
+
+linters:
+  exclusions:
+    presets:
+      # Unchecked errors of Close, Remove and the fmt print functions:
+      # there is nothing useful to do when printing to the terminal fails.
+      - std-error-handling

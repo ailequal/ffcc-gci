@@ -101,7 +101,7 @@ func writeNew(path string, content []byte, mode fs.FileMode) (err error) {
 	}
 	defer func() {
 		if err != nil {
-			os.Remove(path)
+			_ = os.Remove(path) // best effort: do not leave a partial file behind
 		}
 	}()
 
@@ -119,11 +119,10 @@ func replaceFile(path string, content []byte, mode fs.FileMode) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name()) // no effect once the rename has happened
+	defer func() { _ = os.Remove(tmp.Name()) }() // no effect once the rename has happened
 
 	if err := tmp.Chmod(mode); err != nil {
-		tmp.Close()
-		return err
+		return errors.Join(err, tmp.Close())
 	}
 	if err := writeAndClose(tmp, content); err != nil {
 		return err

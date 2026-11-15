@@ -11,24 +11,14 @@ import (
 	"github.com/ailequal/ffcc-gci/internal/save"
 )
 
-const infoUsage = `Show the slots and characters of a save file. Nothing is modified.
-
-Usage:
-  ffcc-gci info <save.gci>
-`
-
 // infoNote closes the output of info. It matters after an artifact has
 // been granted: the artifact is listed, but the numbers are still the old
 // ones until the game has saved again.
-const infoNote = `
-Hearts and stats are the numbers the game last stored in the save. The
-game works them out again from tribe, equipment and artifacts when the
-save is loaded.
-`
+const infoNote = "Hearts and stats are the numbers the game last stored in the save. The game " +
+	"works them out again from tribe, equipment and artifacts when the save is loaded."
 
-func runInfo(args []string, stdout, stderr io.Writer) error {
-	fs := newFlagSet("info", stderr, infoUsage)
-	files, err := parse(fs, args)
+func runInfo(c *command, args []string, stdout, stderr io.Writer) error {
+	files, err := c.parse(c.flagSet(stderr), args, stdout)
 	if err != nil {
 		return err
 	}
@@ -54,7 +44,7 @@ func runInfo(args []string, stdout, stderr io.Writer) error {
 			printSlot(stdout, index, slot)
 		}
 	}
-	fmt.Fprint(stdout, infoNote)
+	fmt.Fprintf(stdout, "\n%s\n", wrap(infoNote, helpWidth, ""))
 	return nil
 }
 
@@ -98,6 +88,15 @@ func hearts(halves int) string {
 	return fmt.Sprintf("%d.5", halves/2)
 }
 
+// itemName returns the name of an item, or a placeholder for an ID the
+// item table does not have.
+func itemName(id int) string {
+	if name, ok := itemdb.Name(id); ok {
+		return name
+	}
+	return fmt.Sprintf("unknown item %d", id)
+}
+
 // nameList formats item IDs as ": name, name x2, ...", grouping repeated
 // items in order of first appearance. It returns "" for no items.
 func nameList(ids []int) string {
@@ -116,14 +115,10 @@ func nameList(ids []int) string {
 
 	parts := make([]string, len(order))
 	for i, id := range order {
-		name, ok := itemdb.Name(id)
-		if !ok {
-			name = fmt.Sprintf("unknown item %#x", id)
-		}
+		parts[i] = itemName(id)
 		if n := counts[id]; n > 1 {
-			name = fmt.Sprintf("%s x%d", name, n)
+			parts[i] = fmt.Sprintf("%s x%d", parts[i], n)
 		}
-		parts[i] = name
 	}
 	return ": " + strings.Join(parts, ", ")
 }

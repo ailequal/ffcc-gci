@@ -7,31 +7,19 @@ import (
 	"github.com/ailequal/ffcc-gci/internal/save"
 )
 
-// setGilUsage is a format string; it takes the lowest and highest gil.
-const setGilUsage = `Set a character's gil.
-
-Usage:
-  ffcc-gci set-gil -slot <1-4> -char <name or 1-8> -gil <amount> [-o <new file>] <save.gci>
-
-Flags:
-  -gil   New amount of gil, %d to %d. This is the range the game itself
-         keeps gil in; anything outside it is refused.
-` + editHelp
-
-func runSetGil(args []string, stdout, stderr io.Writer) error {
-	limit := save.GilLimit
-	fs := newFlagSet("set-gil", stderr, fmt.Sprintf(setGilUsage, limit.Min, limit.Max))
+func runSetGil(c *command, args []string, stdout, stderr io.Writer) error {
+	fs := c.flagSet(stderr)
 	ef := addEditFlags(fs)
 	gil := fs.Int("gil", 0, "")
 
-	files, err := parse(fs, args)
+	files, err := c.parse(fs, args, stdout)
 	if err != nil {
 		return err
 	}
 	if err := requireFlags(fs, "slot", "char", "gil"); err != nil {
 		return err
 	}
-	if err := limit.Check(*gil); err != nil {
+	if err := save.GilLimit.Check(*gil); err != nil {
 		return usagef("%v; nothing was written", err)
 	}
 

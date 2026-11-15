@@ -105,7 +105,11 @@ func TestRunBasics(t *testing.T) {
 		{name: "help flag", args: []string{"--help"}, wantCode: ExitOK, wantStdout: "Usage:"},
 		{name: "version", args: []string{"version"}, wantCode: ExitOK, wantStdout: "ffcc-gci " + Version},
 		{name: "unknown command", args: []string{"bogus"}, wantCode: ExitUsage, wantStderr: `unknown command "bogus"`},
-		{name: "command help", args: []string{"set-gil", "-h"}, wantCode: ExitOK, wantStderr: "Close Dolphin"},
+		{name: "command help", args: []string{"set-gil", "-h"}, wantCode: ExitOK, wantStdout: "Close Dolphin"},
+		{name: "help for a command", args: []string{"help", "add-item"}, wantCode: ExitOK, wantStdout: "ffcc-gci add-item -slot <1-4>"},
+		{name: "help for a builtin", args: []string{"help", "help"}, wantCode: ExitOK, wantStdout: "-markdown"},
+		{name: "help for an unknown command", args: []string{"help", "bogus"}, wantCode: ExitUsage, wantStderr: `there is no command "bogus"`},
+		{name: "help with two modes", args: []string{"help", "-all", "-markdown"}, wantCode: ExitUsage, wantStderr: "one command, -all or -markdown"},
 		{name: "unknown flag", args: []string{"info", "-bogus"}, wantCode: ExitUsage, wantStderr: "bogus"},
 		{name: "info without file", args: []string{"info"}, wantCode: ExitUsage, wantStderr: "exactly one save file"},
 		{name: "info missing file", args: []string{"info", "/nonexistent/save.gci"}, wantCode: ExitError, wantStderr: "no such file"},
@@ -297,10 +301,17 @@ func TestLimits(t *testing.T) {
 	if got.code != ExitOK {
 		t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
 	}
+	// The output is wrapped, so compare with line breaks removed.
+	flat := strings.Join(strings.Fields(got.stdout), " ")
 	for _, l := range save.Limits() {
-		want := fmt.Sprintf("%s: %d to %d", l.Name, l.Min, l.Max)
-		if !strings.Contains(got.stdout, want) || !strings.Contains(got.stdout, l.Source) {
+		want := fmt.Sprintf("%s: %s", l.Name, rangeText(l))
+		if !strings.Contains(flat, want) || !strings.Contains(flat, l.Source) {
 			t.Errorf("output lacks the %q limit or its source\n%s", l.Name, got.stdout)
+		}
+	}
+	for _, line := range strings.Split(got.stdout, "\n") {
+		if len(line) > helpWidth {
+			t.Errorf("line is %d characters wide, want at most %d: %q", len(line), helpWidth, line)
 		}
 	}
 	for _, want := range []string{"slot: 1 to 4", "character: 1 to 8"} {
@@ -318,8 +329,8 @@ func TestSetGilHelpStatesTheRange(t *testing.T) {
 	got := run("set-gil", "-h")
 
 	want := fmt.Sprintf("%d to %d", save.GilLimit.Min, save.GilLimit.Max)
-	if got.code != ExitOK || !strings.Contains(got.stderr, want) {
-		t.Errorf("exit code = %d, help = %q, want it to state %q", got.code, got.stderr, want)
+	if got.code != ExitOK || !strings.Contains(got.stdout, want) {
+		t.Errorf("exit code = %d, help = %q, want it to state %q", got.code, got.stdout, want)
 	}
 }
 
@@ -623,7 +634,7 @@ func TestAddArtifactRefuses(t *testing.T) {
 func TestEveryGrantableArtifactIsNamed(t *testing.T) {
 	seen := make(map[string]bool)
 	for id := save.ArtifactLimit.Min; id <= save.ArtifactLimit.Max; id++ {
-		name := artifactName(id)
+		name := itemName(id)
 		if name == "" || strings.HasPrefix(name, "Equip.") {
 			t.Errorf("item %d has no real name: %q", id, name)
 		}
@@ -632,8 +643,8 @@ func TestEveryGrantableArtifactIsNamed(t *testing.T) {
 		}
 		seen[strings.ToLower(name)] = true
 
-		if got, err := findArtifact(name); err != nil || got != id {
-			t.Errorf("findArtifact(%q) = %d, %v; want %d", name, got, err, id)
+		if got, err := artifactCatalog().find(name); err != nil || got != id {
+			t.Errorf("find(%q) = %d, %v; want %d", name, got, err, id)
 		}
 	}
 	if len(seen) != 73 {
@@ -723,8 +734,8 @@ func TestEveryAddableItemIsDescribedByTheGame(t *testing.T) {
 		}
 		seen[strings.ToLower(name)] = true
 
-		if got, err := findItem(name); err != nil || got != id {
-			t.Errorf("findItem(%q) = %d, %v; want %d", name, got, err, id)
+		if got, err := itemCatalog().find(name); err != nil || got != id {
+			t.Errorf("find(%q) = %d, %v; want %d", name, got, err, id)
 		}
 	}
 	if len(ids) != 164 {
@@ -882,5 +893,166 @@ func TestAddItemFillsTheInventoryExactly(t *testing.T) {
 	full := run("add-item", "-slot", "1", "-char", "Alba", "-item", "Bronze", path)
 	if full.code != ExitError || !strings.Contains(full.stderr, "0 free inventory slots") {
 		t.Errorf("adding to a full inventory: exit code = %d, stderr = %q", full.code, full.stderr)
+	}
+}
+
+// TestHelpCoversEveryCommand checks the single description of each
+// command: it must be complete, its text must fit the terminal, and its
+// examples must be real command lines of that command.
+func TestHelpCoversEveryCommand(t *testing.T) {
+	all := append(append([]*command{}, commands...), builtins...)
+	overviewText := overview()
+	seen := make(map[string]bool)
+
+	for _, c := range all {
+		if seen[c.name] {
+			t.Errorf("command %q is listed twice", c.name)
+		}
+		seen[c.name] = true
+
+		if c.summary == "" || strings.HasSuffix(c.summary, ".") {
+			t.Errorf("%s: summary %q must be set and have no full stop", c.name, c.summary)
+		}
+		if len(c.examples) == 0 {
+			t.Errorf("%s: has no example", c.name)
+		}
+		for _, ex := range c.examples {
+			if !strings.HasPrefix(ex.line, "ffcc-gci "+c.name) || ex.note == "" {
+				t.Errorf("%s: example %q must be a call of the command with a note", c.name, ex.line)
+			}
+		}
+		if !strings.Contains(overviewText, "  "+c.name+" ") {
+			t.Errorf("%s: missing from the overview", c.name)
+		}
+
+		help := c.help()
+		for _, f := range c.allFlags() {
+			if !strings.Contains(help, "  "+flagForm(f)+"\n") {
+				t.Errorf("%s: help lacks the flag %q", c.name, flagForm(f))
+			}
+		}
+		for _, line := range strings.Split(help, "\n") {
+			// Usage and example lines are command lines and are not wrapped.
+			if len(line) > helpWidth && !strings.HasPrefix(line, "  ffcc-gci ") {
+				t.Errorf("%s: help line is %d characters wide: %q", c.name, len(line), line)
+			}
+		}
+	}
+
+	for _, c := range commands {
+		if c.run == nil {
+			t.Errorf("%s: has no code to run", c.name)
+		}
+	}
+}
+
+// TestExamplesAreAccepted runs every example of the commands that change
+// or read a save against the sample save, so the documentation cannot
+// show a command line the program refuses.
+func TestExamplesAreAccepted(t *testing.T) {
+	for _, c := range commands {
+		for _, ex := range c.examples {
+			t.Run(ex.line, func(t *testing.T) {
+				dir := t.TempDir()
+				// The sample has Alba in slot 1; the examples use slot 3.
+				content := savetest.GCI(nil, nil, &savetest.Slot{
+					Town: "Tipa", Key: 5,
+					Characters: []savetest.Character{{Name: "Alba", Tribe: 0, Gil: 1}},
+				})
+				if err := os.WriteFile(filepath.Join(dir, "save.gci"), content, 0o644); err != nil {
+					t.Fatal(err)
+				}
+
+				args := splitCommandLine(ex.line)[1:]
+				for i, arg := range args {
+					if arg == "save.gci" || arg == "edited.gci" {
+						args[i] = filepath.Join(dir, arg)
+					}
+				}
+				if got := run(args...); got.code != ExitOK {
+					t.Errorf("exit code = %d, stderr = %q", got.code, got.stderr)
+				}
+			})
+		}
+	}
+}
+
+// splitCommandLine splits an example into arguments, honouring double
+// quotes.
+func splitCommandLine(line string) []string {
+	var args []string
+	var current strings.Builder
+	quoted, pending := false, false
+	for _, r := range line {
+		switch {
+		case r == '"':
+			quoted = !quoted
+			pending = true
+		case r == ' ' && !quoted:
+			if pending {
+				args = append(args, current.String())
+				current.Reset()
+				pending = false
+			}
+		default:
+			current.WriteRune(r)
+			pending = true
+		}
+	}
+	if pending {
+		args = append(args, current.String())
+	}
+	return args
+}
+
+// TestUsageDocIsUpToDate fails when docs/USAGE.md no longer matches the
+// reference the program renders. Regenerate it with "make docs".
+func TestUsageDocIsUpToDate(t *testing.T) {
+	const path = "../../docs/USAGE.md"
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("%v; create it with \"make docs\"", err)
+	}
+	if string(got) != usageMarkdown() {
+		t.Errorf("%s is out of date; run \"make docs\" and commit the result", path)
+	}
+
+	viaCommand := run("help", "-markdown")
+	if viaCommand.code != ExitOK || viaCommand.stdout != usageMarkdown() {
+		t.Errorf("\"help -markdown\" does not print the reference: exit code %d", viaCommand.code)
+	}
+}
+
+func TestHelpAll(t *testing.T) {
+	got := run("help", "-all")
+
+	if got.code != ExitOK {
+		t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
+	}
+	for _, c := range append(append([]*command{}, commands...), builtins...) {
+		if !strings.Contains(got.stdout, c.help()) {
+			t.Errorf("the full help lacks the help of %q", c.name)
+		}
+	}
+}
+
+func TestWrap(t *testing.T) {
+	tests := []struct {
+		text   string
+		width  int
+		indent string
+		want   string
+	}{
+		{text: "one two three", width: 20, want: "one two three"},
+		{text: "one two three", width: 7, want: "one two\nthree"},
+		{text: "one two three", width: 9, indent: "  ", want: "  one two\n  three"},
+		{text: "  spaced   out  ", width: 20, want: "spaced out"},
+		{text: "unbreakablyLongWord next", width: 5, want: "unbreakablyLongWord\nnext"},
+		{text: "", width: 10, indent: "> ", want: "> "},
+	}
+	for _, tt := range tests {
+		if got := wrap(tt.text, tt.width, tt.indent); got != tt.want {
+			t.Errorf("wrap(%q, %d, %q) = %q, want %q", tt.text, tt.width, tt.indent, got, tt.want)
+		}
 	}
 }

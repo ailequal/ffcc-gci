@@ -3,6 +3,11 @@
 //
 // It holds no knowledge of the save format; that lives in the gci, save
 // and itemdb packages.
+//
+// Each command is described once, in commands.go: its summary, flags,
+// notes and examples. The help the program prints and the reference in
+// docs/USAGE.md are both rendered from that description, so they cannot
+// drift apart.
 package cli
 
 import (
@@ -10,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"runtime/debug"
 )
 
 // Version is the program version. Release builds override it with
@@ -23,22 +29,6 @@ const (
 	ExitUsage = 2 // the command line was invalid
 )
 
-type command struct {
-	name    string
-	summary string
-	run     func(args []string, stdout, stderr io.Writer) error
-}
-
-var commands = []command{
-	{name: "info", summary: "Show the slots and characters of a save file", run: runInfo},
-	{name: "set-gil", summary: "Set a character's gil", run: runSetGil},
-	{name: "add-artifact", summary: "Grant a character an artifact", run: runAddArtifact},
-	{name: "artifacts", summary: "List the artifacts that can be granted", run: runArtifacts},
-	{name: "add-item", summary: "Add an item to a character's inventory", run: runAddItem},
-	{name: "items", summary: "List the items that can be added", run: runItems},
-	{name: "limits", summary: "Show every editable value and its allowed range", run: runLimits},
-}
-
 // usageError is a mistake in the command line, as opposed to a command
 // that ran and failed.
 type usageError struct {
@@ -51,54 +41,42 @@ func usagef(format string, args ...any) error {
 	return &usageError{msg: fmt.Sprintf(format, args...)}
 }
 
-// errFlagParse marks a flag error the flag package has already reported.
+// errFlagParse marks a flag error that has already been reported.
 var errFlagParse = errors.New("invalid flags")
-
-func printUsage(w io.Writer) {
-	fmt.Fprint(w, `ffcc-gci - save editor for Final Fantasy Crystal Chronicles (GameCube, PAL)
-
-Usage:
-  ffcc-gci <command> [arguments]
-
-Commands:
-`)
-	for _, c := range commands {
-		fmt.Fprintf(w, "  %-12s  %s\n", c.name, c.summary)
-	}
-	fmt.Fprint(w, `  help          Show this help
-  version       Print the program version
-
-Run "ffcc-gci <command> -h" for the arguments of a command.
-`)
-}
 
 // Run executes the command line given in args (without the program name)
 // and returns the process exit code. Normal output goes to stdout,
 // diagnostics to stderr.
 func Run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		printUsage(stderr)
+		fmt.Fprint(stderr, overview())
 		return ExitUsage
 	}
 
 	switch args[0] {
 	case "help", "-h", "--help":
-		printUsage(stdout)
-		return ExitOK
+		return exitCode(runHelp(args[1:], stdout, stderr), stderr)
 	case "version", "--version":
-		fmt.Fprintf(stdout, "ffcc-gci %s\n", Version)
+		fmt.Fprintf(stdout, "ffcc-gci %s\n", version())
 		return ExitOK
 	}
 
-	for _, c := range commands {
-		if c.name == args[0] {
-			return exitCode(c.run(args[1:], stdout, stderr), stderr)
-		}
+	if c := findCommand(commands, args[0]); c != nil {
+		return exitCode(c.run(c, args[1:], stdout, stderr), stderr)
 	}
 
 	fmt.Fprintf(stderr, "ffcc-gci: unknown command %q\n\n", args[0])
-	printUsage(stderr)
+	fmt.Fprint(stderr, overview())
 	return ExitUsage
+}
+
+func findCommand(list []*command, name string) *command {
+	for _, c := range list {
+		if c.name == name {
+			return c
+		}
+	}
+	return nil
 }
 
 func exitCode(err error, stderr io.Writer) int {
@@ -117,24 +95,39 @@ func exitCode(err error, stderr io.Writer) int {
 	}
 }
 
-// newFlagSet returns a flag set for a command that reports errors to
-// stderr and prints usage as its help text.
-func newFlagSet(name string, stderr io.Writer, usage string) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+// version returns the program version: the one set at build time, or the
+// module version when the program was installed with "go install".
+func version() string {
+	if Version != "dev" {
+		return Version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return Version
+}
+
+// flagSet returns a flag set for the command. The flag package reports a
+// bad flag to stderr; the help text is printed by parse.
+func (c *command) flagSet(stderr io.Writer) *flag.FlagSet {
+	fs := flag.NewFlagSet(c.name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.Usage = func() { fmt.Fprint(fs.Output(), usage) }
+	fs.Usage = func() {}
 	return fs
 }
 
 // parse parses args and returns the positional arguments. Unlike
-// flag.Parse on its own, it accepts flags before and after them.
-func parse(fs *flag.FlagSet, args []string) ([]string, error) {
+// flag.Parse on its own, it accepts flags before and after them. For -h
+// it prints the command's help to stdout and returns flag.ErrHelp.
+func (c *command) parse(fs *flag.FlagSet, args []string, stdout io.Writer) ([]string, error) {
 	var positional []string
 	for {
 		if err := fs.Parse(args); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
+				fmt.Fprint(stdout, c.help())
 				return nil, err
 			}
+			fmt.Fprintf(fs.Output(), "Run \"ffcc-gci help %s\" for usage.\n", c.name)
 			return nil, errFlagParse
 		}
 		rest := fs.Args()
@@ -146,13 +139,15 @@ func parse(fs *flag.FlagSet, args []string) ([]string, error) {
 	}
 }
 
-// isSet reports whether the named flag was given on the command line.
-func isSet(fs *flag.FlagSet, name string) bool {
-	set := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			set = true
+// requireFlags returns a usage error for the first of the named flags
+// that was not given.
+func requireFlags(fs *flag.FlagSet, names ...string) error {
+	given := make(map[string]bool)
+	fs.Visit(func(f *flag.Flag) { given[f.Name] = true })
+	for _, name := range names {
+		if !given[name] {
+			return usagef("%s needs -%s; run \"ffcc-gci help %s\" for usage", fs.Name(), name, fs.Name())
 		}
-	})
-	return set
+	}
+	return nil
 }

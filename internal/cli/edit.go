@@ -11,18 +11,6 @@ import (
 	"github.com/ailequal/ffcc-gci/internal/save"
 )
 
-// editHelp is the part of the help text shared by every command that
-// changes a save.
-const editHelp = `  -slot  Save slot to edit, as numbered by "ffcc-gci info".
-  -char  Character to edit: the name, or the number "ffcc-gci info" shows.
-  -o     Write the result to this new file and leave the save untouched.
-
-Without -o the save is edited in place, and the original is first copied
-to a backup next to it, named <save.gci>.<date-time>.bak.
-
-Close Dolphin before editing: it rewrites the save while a game runs.
-`
-
 // editFlags are the flags shared by every command that changes a save.
 type editFlags struct {
 	slot   *int
@@ -36,17 +24,6 @@ func addEditFlags(fs *flag.FlagSet) *editFlags {
 		char:   fs.String("char", "", ""),
 		output: fs.String("o", "", ""),
 	}
-}
-
-// requireFlags returns a usage error for the first of the named flags
-// that was not given.
-func requireFlags(fs *flag.FlagSet, names ...string) error {
-	for _, name := range names {
-		if !isSet(fs, name) {
-			return usagef("%s needs -%s; run \"ffcc-gci %s -h\" for help", fs.Name(), name, fs.Name())
-		}
-	}
-	return nil
 }
 
 // edit is one character of one slot of a save file, opened for editing.
