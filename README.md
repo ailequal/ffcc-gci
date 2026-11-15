@@ -3,35 +3,80 @@
 A command-line save editor for **Final Fantasy Crystal Chronicles** (GameCube),
 working on save files in Dolphin's `.gci` format.
 
-**Status:** project skeleton only. No save-editing command exists yet.
+> **PAL only.** Only the European version of the game (`GCCP01`) is supported.
+> Saves from the USA and Japanese versions are refused.
 
 ## Goal
 
-Edit only what is safe. A feature is added only when the
-[FFCC decompilation](https://github.com/zcanann/FFCC-Decomp) shows how the game
-reads the value and that it accepts the edited one. Anything that cannot be
-confirmed that way stays out.
+Edit only what is safe. An edit is added only when both of these hold:
 
-## Planned commands
+- The [FFCC decompilation](https://github.com/zcanann/FFCC-Decomp) shows how the
+  game reads the value and that it accepts the edited one.
+- The result is a save the game could have produced by itself through normal
+  play.
 
-| Command | What it does |
+Anything that cannot be confirmed that way stays out.
+
+## Commands
+
+| Command | What it does | Status |
+|---|---|---|
+| `info` | Show slots, characters, gil, stats, items and artifacts. Read-only. | Available |
+| `set-gil` | Set a character's gil, from 0 to 99,999,999. | Available, in-game test pending |
+| `add-item` | Add an allowlisted item to a free inventory slot. | Planned |
+| `add-artifact` | Grant a character an artifact. | Planned |
+
+Strength, magic, defence and max HP are not directly editable: the game
+recomputes them from the character's tribe, equipment and artifacts
+(`CCaravanWork::CalcStatus`).
+
+## Usage
+
+Close Dolphin first. It keeps the save in memory while a game runs and writes
+it back, which would undo or clash with an edit.
+
+```sh
+# Look at a save
+ffcc-gci info save.gci
+
+# Give the character Alba in slot 3 some gil
+ffcc-gci set-gil -slot 3 -char Alba -gil 50000 save.gci
+
+# Same, but write a new file and leave the save untouched
+ffcc-gci set-gil -slot 3 -char Alba -gil 50000 -o edited.gci save.gci
+```
+
+`-slot` and `-char` use the numbers `info` prints. `-char` also takes the
+character's name.
+
+Dolphin's GCI folder for PAL saves is usually `GC/EUR/Card A/` inside its user
+directory. Saves on a raw memory card image (`.raw`) are not supported; export
+them to `.gci` with Dolphin's memory card manager.
+
+## Safety
+
+- **Validation first.** The file must be a PAL save of this game with the
+  expected size, and the slot must pass the checks the game applies on load
+  (header tags, region, checksum). Otherwise nothing is edited.
+- **The original is kept.** An in-place edit first copies the original to
+  `<save.gci>.<date-time>.bak`. The backup does not end in `.gci` on purpose:
+  Dolphin loads every `.gci` in a card folder and rejects duplicates. For the
+  same reason, do not put a `-o` output next to the original in that folder.
+- **Limits come from the game.** Values are restricted to the range the game
+  keeps them in.
+- **Self-check before writing.** The edited file is decoded again and compared
+  with the original; if anything other than the intended field and the
+  checksum changed, nothing is written.
+- **No half-written saves.** The new file is written beside the save and
+  renamed over it in one step.
+
+## Why each edit is safe
+
+| Edit | Evidence in the decomp |
 |---|---|
-| `info` | Show slots, characters, gil, stats, items and artifacts. Read-only. |
-| `items` | Search the item table by name or ID. Read-only. |
-| `set-gil` | Set a character's gil. |
-| `add-item` | Add an allowlisted item to a free inventory slot. |
-| `add-artifact` | Grant a character an artifact. |
+| Gil | Stored as a 32-bit integer per character (`Mc::CharaDat::m_gil`), copied as-is on load (`CMemoryCardMan::SetLoadData`). The game keeps it within 0 and 99,999,999 (`CCaravanWork::AddGil`, `CanAddGil`). |
 
-Strength, magic, defense and max HP are not directly editable: the game
-recomputes them from the character's tribe, equipment and artifacts.
-
-## Safety rules
-
-- The input file is validated (game code, size, slot checksum) before any edit.
-- An edit never destroys the original: a backup is always kept.
-- Values are limited to what the game itself allows (for example the gil cap).
-
-## Build
+## Build and test
 
 Requires Go.
 
@@ -40,17 +85,31 @@ make build     # writes bin/ffcc-gci
 make check     # vet, tests and formatting
 ```
 
+The tests build synthetic saves in memory. Real saves are never committed:
+they are personal data and embed the game's banner art. To also run the tests
+against a real PAL save, put one at `testdata/pal.gci` (git-ignored).
+
 ## Layout
 
 | Path | Responsibility |
 |---|---|
 | `cmd/ffcc-gci` | Program entry point. |
-| `internal/cli` | Argument parsing, command dispatch, output. |
+| `internal/cli` | Argument parsing, command dispatch, output, file writing. |
 | `internal/gci` | The GCI container (header and blocks). |
-| `internal/save` | Save slots: decoding, checksum, character fields. |
-| `internal/itemdb` | Item IDs, names, categories and the allowlist. |
+| `internal/save` | Save slots: decoding, checksum, character fields, edit verification. |
+| `internal/save/savetest` | Synthetic saves for tests. |
+| `internal/itemdb` | Item IDs and names. |
+
+## Save format
+
+The file is 22 memory card blocks: a `0x4000`-byte banner area followed by four
+save slots of `0xA000` bytes. In each slot, everything after the first `0x18`
+bytes is stored as little-endian 32-bit words rotated left by a per-slot key,
+and the decoded data carries a CRC-32 (polynomial `0x04C11DB7`).
 
 ## Credits
 
 The save format knowledge comes from
-[zcanann/FFCC-Decomp](https://github.com/zcanann/FFCC-Decomp).
+[zcanann/FFCC-Decomp](https://github.com/zcanann/FFCC-Decomp). The GCI container
+layout and the folder-loading rules come from
+[Dolphin](https://github.com/dolphin-emu/dolphin).
