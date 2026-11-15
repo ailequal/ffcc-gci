@@ -1,0 +1,12 @@
+# Build output
+/bin/
+
+# Save files and their backups: personal data, and they embed the game's
+# banner art, so they never belong in the repository.
+*.gci
+*.bak
+
+# Editor and OS clutter
+.idea/
+.vscode/
+.DS_Store
