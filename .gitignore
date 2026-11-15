@@ -1,5 +1,6 @@
-# Build output
+# Build output (make build, make dist)
 /bin/
+/dist/
 
 # Save files and their backups: personal data, and they embed the game's
 # banner art, so they never belong in the repository.
