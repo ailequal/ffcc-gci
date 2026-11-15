@@ -247,6 +247,8 @@ Print the program version.
 ffcc-gci version
 ```
 
+It prints the version, the Go toolchain the program was built with and the platform, for example "ffcc-gci v1.0.0 (go1.27.3, linux/amd64)". A build that is not a release reports the version "dev" or the git revision.
+
 Examples:
 
 ```sh

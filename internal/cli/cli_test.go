@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -103,7 +104,7 @@ func TestRunBasics(t *testing.T) {
 		{name: "no arguments", args: nil, wantCode: ExitUsage, wantStderr: "Usage:"},
 		{name: "help", args: []string{"help"}, wantCode: ExitOK, wantStdout: "set-gil"},
 		{name: "help flag", args: []string{"--help"}, wantCode: ExitOK, wantStdout: "Usage:"},
-		{name: "version", args: []string{"version"}, wantCode: ExitOK, wantStdout: "ffcc-gci " + Version},
+		{name: "version", args: []string{"version"}, wantCode: ExitOK, wantStdout: "ffcc-gci " + Version + " (" + runtime.Version() + ", " + runtime.GOOS + "/" + runtime.GOARCH + ")\n"},
 		{name: "unknown command", args: []string{"bogus"}, wantCode: ExitUsage, wantStderr: `unknown command "bogus"`},
 		{name: "command help", args: []string{"set-gil", "-h"}, wantCode: ExitOK, wantStdout: "Close Dolphin"},
 		{name: "help for a command", args: []string{"help", "add-item"}, wantCode: ExitOK, wantStdout: "ffcc-gci add-item -slot <1-4>"},

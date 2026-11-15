@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"runtime"
 	"runtime/debug"
 )
 
@@ -57,7 +58,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		return exitCode(runHelp(args[1:], stdout, stderr), stderr)
 	case "version", "--version":
-		fmt.Fprintf(stdout, "ffcc-gci %s\n", version())
+		fmt.Fprintln(stdout, versionLine())
 		return ExitOK
 	}
 
@@ -93,6 +94,13 @@ func exitCode(err error, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "ffcc-gci: %v\n", err)
 		return ExitError
 	}
+}
+
+// versionLine is what "ffcc-gci version" prints: the program version, the
+// Go toolchain and the platform. The release workflow checks this line on
+// every platform it builds for.
+func versionLine() string {
+	return fmt.Sprintf("ffcc-gci %s (%s, %s/%s)", version(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }
 
 // version returns the program version: the one set at build time, or the
