@@ -1,6 +1,6 @@
 BINARY  := ffcc-gci
 VERSION ?= dev
-LDFLAGS := -X ffcc-gci/internal/cli.Version=$(VERSION)
+LDFLAGS := -X github.com/ailequal/ffcc-gci/internal/cli.Version=$(VERSION)
 
 .PHONY: build test vet fmt check clean
 

@@ -11,7 +11,7 @@ import (
 )
 
 // Version is the program version. Release builds override it with
-// -ldflags "-X ffcc-gci/internal/cli.Version=...".
+// -ldflags "-X github.com/ailequal/ffcc-gci/internal/cli.Version=...".
 var Version = "dev"
 
 // Exit codes returned by Run.

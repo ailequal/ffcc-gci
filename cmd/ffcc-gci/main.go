@@ -5,7 +5,7 @@ package main
 import (
 	"os"
 
-	"ffcc-gci/internal/cli"
+	"github.com/ailequal/ffcc-gci/internal/cli"
 )
 
 func main() {
