@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ailequal/ffcc-gci/internal/gci"
+	"github.com/ailequal/ffcc-gci/internal/itemdb"
 	"github.com/ailequal/ffcc-gci/internal/save"
 	"github.com/ailequal/ffcc-gci/internal/save/savetest"
 )
@@ -464,13 +466,13 @@ func TestArtifactsList(t *testing.T) {
 		t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
 	}
 	for _, want := range []string{
-		"Strength\n  159  Shuriken\n",
-		"Magic\n  182  Drgn. Whisker\n",
-		"Defence\n  204  Main Gauche\n",
-		"Command slots\n  219  Moogle Pocket\n",
-		"Spell rings\n  223  Fire Ring\n",
-		"Hearts\n  228  Earth Pendant\n",
-		"  231  Sun Pendant\n",
+		"Strength\n  159  Shuriken         Strength +1\n",
+		"Magic\n  182  Drgn. Whisker    Magic +1\n",
+		"Defence\n  204  Main Gauche      Defence +2\n",
+		"Command slots\n  219  Moogle Pocket    Gain another command slot\n",
+		"Spell rings\n  223  Fire Ring        Cast Fire at any time\n",
+		"Hearts\n  228  Earth Pendant    Gain another heart\n",
+		"  231  Sun Pendant      Gain another heart\n",
 	} {
 		if !strings.Contains(got.stdout, want) {
 			t.Errorf("output lacks %q\n%s", want, got.stdout)
@@ -636,5 +638,249 @@ func TestEveryGrantableArtifactIsNamed(t *testing.T) {
 	}
 	if len(seen) != 73 {
 		t.Errorf("%d artifacts in range, want 73", len(seen))
+	}
+}
+
+// inventoryOf reads the used inventory slots of a character from a save
+// file on disk, in slot order.
+func inventoryOf(t *testing.T, path string, slot, character int) []int {
+	t.Helper()
+	f, err := openSave(path)
+	if err != nil {
+		t.Fatalf("openSave: %v", err)
+	}
+	s, err := f.data.Slot(slot)
+	if err != nil {
+		t.Fatalf("Slot(%d): %v", slot, err)
+	}
+	c, err := s.Character(character)
+	if err != nil {
+		t.Fatalf("Character(%d): %v", character, err)
+	}
+	var held []int
+	for _, id := range c.Inventory() {
+		if id != save.EmptyItem {
+			held = append(held, id)
+		}
+	}
+	if len(held) != c.ItemCount() {
+		t.Fatalf("%d items held but the count field says %d", len(held), c.ItemCount())
+	}
+	return held
+}
+
+func TestItemsList(t *testing.T) {
+	got := run("items")
+
+	if got.code != ExitOK {
+		t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
+	}
+	for _, want := range []string{
+		"Phoenix Down\n  293  Phoenix Down\n",
+		"Materials\n  294  Bronze\n",
+		"  351  Remedy\n\nFood\n  381  Striped Apple\n",
+		"  392  Strange Liquid\n\nDesigns\n  401  Novice's Wpn.    Design for anyone\n",
+		"  411  Lunar Wpn.       Design for Selkies\n",
+		"  493  Ring of Invin.   Design for anyone\n",
+	} {
+		if !strings.Contains(got.stdout, want) {
+			t.Errorf("output lacks %q\n%s", want, got.stdout)
+		}
+	}
+	if n := strings.Count(got.stdout, "\n  "); n != 164 {
+		t.Errorf("listed %d items, want 164", n)
+	}
+	for _, banned := range []string{"Extra", "???", "design 9", "Equip.", "Fruit Seed", "Veg. Seed", "Wheat Seed", "Flower Seed", "Strange Seed", "Shella", "Bandana", "Goddess", "Ultimite", "Copper Sword", "Item Gil"} {
+		if strings.Contains(got.stdout, banned) {
+			t.Errorf("the list includes %q, which must not be addable", banned)
+		}
+	}
+
+	filtered := run("items", "mythril")
+	if filtered.code != ExitOK || !strings.Contains(filtered.stdout, "  296  Mythril\n") || strings.Contains(filtered.stdout, "Bronze\n") {
+		t.Errorf("items mythril: exit code = %d, output:\n%s", filtered.code, filtered.stdout)
+	}
+	none := run("items", "racket")
+	if none.code != ExitError || !strings.Contains(none.stderr, "no item that can be added") {
+		t.Errorf("items racket: exit code = %d, stderr = %q", none.code, none.stderr)
+	}
+}
+
+// TestEveryAddableItemIsDescribedByTheGame makes sure the item ranges hold
+// only items the game itself describes as one of the allowed kinds, each
+// with a unique name.
+func TestEveryAddableItemIsDescribedByTheGame(t *testing.T) {
+	seen := make(map[string]bool)
+	ids := addableIDs()
+	for _, id := range ids {
+		name := itemName(id)
+		if itemdb.KindOf(id) == itemdb.KindOther {
+			desc, _ := itemdb.Description(id)
+			t.Errorf("item %d (%s) is addable but the game describes it as %q", id, name, desc)
+		}
+		if seen[strings.ToLower(name)] {
+			t.Errorf("item name %q is used twice", name)
+		}
+		seen[strings.ToLower(name)] = true
+
+		if got, err := findItem(name); err != nil || got != id {
+			t.Errorf("findItem(%q) = %d, %v; want %d", name, got, err, id)
+		}
+	}
+	if len(ids) != 164 {
+		t.Errorf("%d addable items, want 164", len(ids))
+	}
+
+	// Each range must be exactly one kind.
+	kinds := []itemdb.Kind{itemdb.KindPhoenixDown, itemdb.KindMaterial, itemdb.KindFood, itemdb.KindDesign}
+	for i, l := range save.ItemLimits {
+		for id := l.Min; id <= l.Max; id++ {
+			if got := itemdb.KindOf(id); got != kinds[i] {
+				t.Errorf("item %d in the %q range is %v, want %v", id, l.Name, got, kinds[i])
+			}
+		}
+	}
+}
+
+func TestAddItem(t *testing.T) {
+	tests := []struct {
+		name     string
+		char     string
+		args     []string
+		wantHeld []int
+		wantLine string
+	}{
+		{name: "material by name", char: "Alba", args: []string{"-item", "Mythril"},
+			wantHeld: []int{0x01, 0x125, 0x125, 296}, wantLine: "Slot 1, Alba: added Mythril (items 3 -> 4 of 64)"},
+		{name: "several of one food", char: "Alba", args: []string{"-item", "striped apple", "-count", "3"},
+			wantHeld: []int{0x01, 0x125, 0x125, 381, 381, 381}, wantLine: "added 3 x Striped Apple (items 3 -> 6 of 64)"},
+		{name: "another Phoenix Down by ID", char: "Alba", args: []string{"-item", "293"},
+			wantHeld: []int{0x01, 0x125, 0x125, 293}, wantLine: "added Phoenix Down (items 3 -> 4 of 64)"},
+		{name: "unique part of a name", char: "Bruno", args: []string{"-item", "orichal"},
+			wantHeld: []int{297}, wantLine: "Slot 1, Bruno: added Orichalcum (items 0 -> 1 of 64)"},
+		{name: "design for anyone", char: "Alba", args: []string{"-item", "Novice's Wpn."},
+			wantHeld: []int{0x01, 0x125, 0x125, 401}, wantLine: "added Novice's Wpn. (items 3 -> 4 of 64)"},
+		{name: "design for the character's tribe", char: "Bruno", args: []string{"-item", "Lunar Wpn."},
+			wantHeld: []int{411}, wantLine: "added Lunar Wpn. (items 0 -> 1 of 64)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fixClock(t)
+			path, original := writeSample(t)
+			character := map[string]int{"Alba": 0, "Bruno": 1}[tt.char]
+
+			args := append([]string{"add-item", "-slot", "1", "-char", tt.char}, tt.args...)
+			got := run(append(args, path)...)
+
+			if got.code != ExitOK {
+				t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
+			}
+			if !strings.Contains(got.stdout, tt.wantLine) {
+				t.Errorf("stdout = %q, want it to contain %q", got.stdout, tt.wantLine)
+			}
+			if held := inventoryOf(t, path, 0, character); !slices.Equal(held, tt.wantHeld) {
+				t.Errorf("inventory = %v, want %v", held, tt.wantHeld)
+			}
+			other := 1 - character
+			if held := inventoryOf(t, path, 0, other); len(held) != []int{3, 0}[other] {
+				t.Errorf("the other character's inventory changed: %v", held)
+			}
+			if gil := gilOf(t, path, 0, character); gil != []int{200, 346}[character] {
+				t.Errorf("gil = %d, want it untouched", gil)
+			}
+			if !bytes.Equal(mustRead(t, path+".20261115-143005.bak"), original) {
+				t.Error("the backup is not identical to the original save")
+			}
+		})
+	}
+}
+
+func TestAddItemDesignOnlyOnce(t *testing.T) {
+	path, _ := writeSample(t)
+
+	if got := run("add-item", "-slot", "1", "-char", "Alba", "-item", "Bronze Armour", path); got.code != ExitOK {
+		t.Fatalf("first add: exit code = %d, stderr = %q", got.code, got.stderr)
+	}
+	edited := mustRead(t, path)
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := run("add-item", "-slot", "1", "-char", "Alba", "-item", "Bronze Armour", path)
+
+	if got.code != ExitOK || !strings.Contains(got.stdout, "already has the design Bronze Armour") || !strings.Contains(got.stdout, "Nothing written") {
+		t.Errorf("second add: exit code = %d, stdout = %q", got.code, got.stdout)
+	}
+	after, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(entries) || !bytes.Equal(mustRead(t, path), edited) {
+		t.Error("the second add rewrote the save or made another backup")
+	}
+}
+
+func TestAddItemRefuses(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string // the save path is appended
+		wantCode int
+		want     string
+	}{
+		{name: "missing item", args: []string{"-slot", "1", "-char", "Alba"}, wantCode: ExitUsage, want: "needs -item"},
+		{name: "equipment by name", args: []string{"-slot", "1", "-char", "Alba", "-item", "Copper Sword"}, wantCode: ExitUsage, want: "no item that can be added is named"},
+		{name: "equipment by ID", args: []string{"-slot", "1", "-char", "Alba", "-item", "1"}, wantCode: ExitUsage, want: "item ID 1 cannot be added; the allowed IDs are 293, 294-351, 381-392, 401-493"},
+		{name: "magicite by ID", args: []string{"-slot", "1", "-char", "Alba", "-item", "256"}, wantCode: ExitUsage, want: "item ID 256 cannot be added"},
+		{name: "artifact by ID", args: []string{"-slot", "1", "-char", "Alba", "-item", "231"}, wantCode: ExitUsage, want: "item ID 231 cannot be added"},
+		{name: "seed by name", args: []string{"-slot", "1", "-char", "Alba", "-item", "Wheat Seed"}, wantCode: ExitUsage, want: "no item that can be added is named"},
+		{name: "story item by ID", args: []string{"-slot", "1", "-char", "Alba", "-item", "365"}, wantCode: ExitUsage, want: "item ID 365 cannot be added"},
+		{name: "placeholder by ID", args: []string{"-slot", "1", "-char", "Alba", "-item", "494"}, wantCode: ExitUsage, want: "item ID 494 cannot be added"},
+		{name: "ambiguous name", args: []string{"-slot", "1", "-char", "Alba", "-item", "shard"}, wantCode: ExitUsage, want: "be more specific"},
+		{name: "count of zero", args: []string{"-slot", "1", "-char", "Alba", "-item", "Bronze", "-count", "0"}, wantCode: ExitUsage, want: "-count must be between 1 and 64, got 0"},
+		{name: "count above the inventory size", args: []string{"-slot", "1", "-char", "Alba", "-item", "Bronze", "-count", "65"}, wantCode: ExitUsage, want: "-count must be between 1 and 64, got 65"},
+		{name: "more than the free slots", args: []string{"-slot", "1", "-char", "Alba", "-item", "Bronze", "-count", "62"}, wantCode: ExitError, want: "Alba has 61 free inventory slots of 64, not enough for 62"},
+		{name: "design for another tribe", args: []string{"-slot", "1", "-char", "Alba", "-item", "Lunar Wpn."}, wantCode: ExitError, want: "Lunar Wpn. is a design for Selkies and Alba is a Clavat"},
+		{name: "design for women", args: []string{"-slot", "1", "-char", "Alba", "-item", "471"}, wantCode: ExitError, want: "designs for men or for women are not supported"},
+		{name: "two copies of a design", args: []string{"-slot", "1", "-char", "Alba", "-item", "Novice's Wpn.", "-count", "2"}, wantCode: ExitError, want: "can be added only once, not 2 times"},
+		{name: "empty slot", args: []string{"-slot", "2", "-char", "Alba", "-item", "Bronze"}, wantCode: ExitError, want: "slot is empty"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path, original := writeSample(t)
+
+			got := run(append(append([]string{"add-item"}, tt.args...), path)...)
+
+			if got.code != tt.wantCode || !strings.Contains(got.stderr, tt.want) {
+				t.Errorf("exit code = %d, stderr = %q, want code %d and %q", got.code, got.stderr, tt.wantCode, tt.want)
+			}
+			entries, err := os.ReadDir(filepath.Dir(path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 1 || !bytes.Equal(mustRead(t, path), original) {
+				t.Error("a refused edit left a changed save or extra files behind")
+			}
+		})
+	}
+}
+
+func TestAddItemFillsTheInventoryExactly(t *testing.T) {
+	path, _ := writeSample(t)
+
+	// Alba holds 3 items, so 61 slots are free.
+	got := run("add-item", "-slot", "1", "-char", "Alba", "-item", "Bronze", "-count", "61", path)
+	if got.code != ExitOK || !strings.Contains(got.stdout, "items 3 -> 64 of 64") {
+		t.Fatalf("exit code = %d, stdout = %q, stderr = %q", got.code, got.stdout, got.stderr)
+	}
+	if held := inventoryOf(t, path, 0, 0); len(held) != save.InventorySize {
+		t.Errorf("%d items held, want %d", len(held), save.InventorySize)
+	}
+
+	full := run("add-item", "-slot", "1", "-char", "Alba", "-item", "Bronze", path)
+	if full.code != ExitError || !strings.Contains(full.stderr, "0 free inventory slots") {
+		t.Errorf("adding to a full inventory: exit code = %d, stderr = %q", full.code, full.stderr)
 	}
 }

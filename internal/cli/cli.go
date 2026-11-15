@@ -34,6 +34,8 @@ var commands = []command{
 	{name: "set-gil", summary: "Set a character's gil", run: runSetGil},
 	{name: "add-artifact", summary: "Grant a character an artifact", run: runAddArtifact},
 	{name: "artifacts", summary: "List the artifacts that can be granted", run: runArtifacts},
+	{name: "add-item", summary: "Add an item to a character's inventory", run: runAddItem},
+	{name: "items", summary: "List the items that can be added", run: runItems},
 	{name: "limits", summary: "Show every editable value and its allowed range", run: runLimits},
 }
 

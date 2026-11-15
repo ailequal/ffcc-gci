@@ -1,0 +1,61 @@
+???
+Weapon for Clavats
+Weapon for Lilties
+Weapon for Yukes
+Weapon for Selkies
+Armour for anyone
+Armour for Clavats
+Shield for Clavats
+Gauntlets for Lilties
+Helmet for Yukes
+Belt for Selkies
+Accessory for Clavats
+Accessory for Lilties
+Accessory for Yukes
+Accessory for Selkies
+Accessory for men
+Accessory for women
+Accessory for anyone
+Strength
+Defence
+Magic
+Gain another command slot
+Cast Fire at any time
+Cast Blizzard at any time
+Cast Thunder at any time
+Cast Cure at any time
+Cast Life at any time
+Gain another heart
+Magicite of Fire
+Magicite of Blizzard
+Magicite of Thunder
+Magicite of Cure
+Magicite of Clear
+Magicite of Life
+Revives the fallen
+Material for equipment
+Figurine of a goddess
+Terrifying mask
+Flower seed
+Strangely shaped seed
+Fruit seed
+Vegetable seed
+Wheat seed
+Bandana you found
+Allows entry into Shella
+Sulphur from Mt. Kilanda
+Cactus flower
+Restores HP
+Wheat
+Flour
+Design for Clavats
+Design for Lilties
+Design for Yukes
+Design for Selkies
+Design for men
+Design for women
+Design for anyone
+Armour for anyone
+Armour for Clavats
+Bandana you found
+Sulphur from Mt. Kilanda

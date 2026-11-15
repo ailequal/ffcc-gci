@@ -31,8 +31,11 @@ itself enforces, as shown by the FFCC decompilation.
 	for _, l := range save.Limits() {
 		fmt.Fprintf(stdout, "%s: %d to %d\n  %s\n\n", l.Name, l.Min, l.Max, l.Source)
 	}
-	fmt.Fprint(stdout, `Artifacts are chosen by name; "ffcc-gci artifacts" lists them with their
-item IDs.
+	fmt.Fprint(stdout, `Artifacts and items are chosen by name. "ffcc-gci artifacts" and
+"ffcc-gci items" list the ones that are accepted, with their item IDs.
+
+Everything else in the game's item table is refused for safety: equipment,
+magicite, seeds, story items and unused entries.
 
 `)
 	fmt.Fprintf(stdout, `What an edit can target:

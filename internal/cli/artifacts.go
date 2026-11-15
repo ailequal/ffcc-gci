@@ -124,7 +124,8 @@ func runArtifacts(args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stdout, "%s\n", effect)
 			group = effect
 		}
-		fmt.Fprintf(stdout, "  %d  %s\n", id, name)
+		desc, _ := itemdb.Description(id)
+		fmt.Fprintf(stdout, "  %d  %-15s  %s\n", id, name, desc)
 		shown++
 	}
 

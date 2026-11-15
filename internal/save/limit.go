@@ -9,8 +9,9 @@ var (
 	// ErrOutOfRange reports a value outside the range an editable field
 	// accepts.
 	ErrOutOfRange = errors.New("value out of range")
-	// ErrAlreadyOwned reports an artifact the character already has.
-	ErrAlreadyOwned = errors.New("the character already owns this artifact")
+	// ErrAlreadyOwned reports an artifact or a design the character
+	// already has.
+	ErrAlreadyOwned = errors.New("the character already has it")
 )
 
 // Limit is the range of values an editable field accepts.
@@ -58,5 +59,7 @@ var ArtifactLimit = Limit{
 
 // Limits returns the limit of every value this package can change.
 func Limits() []Limit {
-	return []Limit{GilLimit, ArtifactLimit}
+	limits := []Limit{GilLimit, ArtifactLimit}
+	limits = append(limits, ItemLimits...)
+	return append(limits, InventoryLimit)
 }
