@@ -1,0 +1,21 @@
+# Weekly update pull requests for the pinned dependencies: the actions in the
+# workflow (pinned by commit SHA) and the Go modules. The cooldown skips
+# releases younger than a week.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
