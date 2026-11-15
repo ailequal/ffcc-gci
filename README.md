@@ -30,7 +30,7 @@ code. A value outside its range is refused and nothing is written.
 | `add-artifact` | Grant a character one of the game's 73 artifacts. | Available, tested in-game |
 | `artifacts` | List the artifacts that can be granted, by what they improve. Read-only. | Available |
 | `limits` | Show every editable value and the range it accepts. Read-only. | Available |
-| `add-item` | Add Phoenix Down, a material, a food or a design to a character's inventory. | Available, in-game test pending |
+| `add-item` | Add Phoenix Down, a material, a food or a design to a character's inventory. | Available, tested in-game |
 | `items` | List the items that can be added, by group. Read-only. | Available |
 
 Strength, magic, defence and hearts are not directly editable: the game
