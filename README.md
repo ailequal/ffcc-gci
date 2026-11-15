@@ -27,7 +27,7 @@ code. A value outside its range is refused and nothing is written.
 |---|---|---|
 | `info` | Show slots, characters, gil, stats, items and artifacts. Read-only. | Available |
 | `set-gil` | Set a character's gil, from 0 to 99,999,999. | Available, tested in-game |
-| `add-artifact` | Grant a character one of the game's 73 artifacts. | Available, in-game test pending |
+| `add-artifact` | Grant a character one of the game's 73 artifacts. | Available, tested in-game |
 | `artifacts` | List the artifacts that can be granted, by what they improve. Read-only. | Available |
 | `limits` | Show every editable value and the range it accepts. Read-only. | Available |
 | `add-item` | Add an allowlisted item to a free inventory slot. | Planned |
