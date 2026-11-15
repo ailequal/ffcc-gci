@@ -17,6 +17,15 @@ Usage:
   ffcc-gci info <save.gci>
 `
 
+// infoNote closes the output of info. It matters after an artifact has
+// been granted: the artifact is listed, but the numbers are still the old
+// ones until the game has saved again.
+const infoNote = `
+Hearts and stats are the numbers the game last stored in the save. The
+game works them out again from tribe, equipment and artifacts when the
+save is loaded.
+`
+
 func runInfo(args []string, stdout, stderr io.Writer) error {
 	fs := newFlagSet("info", stderr, infoUsage)
 	files, err := parse(fs, args)
@@ -45,6 +54,7 @@ func runInfo(args []string, stdout, stderr io.Writer) error {
 			printSlot(stdout, index, slot)
 		}
 	}
+	fmt.Fprint(stdout, infoNote)
 	return nil
 }
 
@@ -75,10 +85,7 @@ func printSlot(w io.Writer, index int, slot *save.Slot) {
 		}
 		fmt.Fprintf(w, "     Items      %d of %d%s\n", len(items), save.InventorySize, nameList(items))
 
-		var artifacts []int
-		for _, flag := range c.Artifacts() {
-			artifacts = append(artifacts, itemdb.ArtifactBase+flag)
-		}
+		artifacts := c.Artifacts()
 		fmt.Fprintf(w, "     Artifacts  %d%s\n", len(artifacts), nameList(artifacts))
 	}
 }

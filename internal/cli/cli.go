@@ -32,6 +32,8 @@ type command struct {
 var commands = []command{
 	{name: "info", summary: "Show the slots and characters of a save file", run: runInfo},
 	{name: "set-gil", summary: "Set a character's gil", run: runSetGil},
+	{name: "add-artifact", summary: "Grant a character an artifact", run: runAddArtifact},
+	{name: "artifacts", summary: "List the artifacts that can be granted", run: runArtifacts},
 	{name: "limits", summary: "Show every editable value and its allowed range", run: runLimits},
 }
 
@@ -59,10 +61,10 @@ Usage:
 Commands:
 `)
 	for _, c := range commands {
-		fmt.Fprintf(w, "  %-9s  %s\n", c.name, c.summary)
+		fmt.Fprintf(w, "  %-12s  %s\n", c.name, c.summary)
 	}
-	fmt.Fprint(w, `  help       Show this help
-  version    Print the program version
+	fmt.Fprint(w, `  help          Show this help
+  version       Print the program version
 
 Run "ffcc-gci <command> -h" for the arguments of a command.
 `)

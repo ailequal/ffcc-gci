@@ -17,9 +17,18 @@ const (
 	// CCaravanWork::CanAddGil (src/gobjwork.cpp).
 	MaxGil = 99_999_999
 
+	// FirstArtifact and LastArtifact are the item IDs of the first and
+	// last artifact a character can be granted. A character has
+	// artifactFlags flags, for the item IDs from FirstArtifact on
+	// (CMemoryCardMan::SetLoadData), but the IDs after LastArtifact are
+	// unnamed placeholders in the game's item table.
+	FirstArtifact = 0x9F
+	LastArtifact  = 0xE7
+
 	characterSize = 0x9C0
 	nameLen       = 16
 	artifactWords = 3
+	artifactFlags = artifactWords * 32
 )
 
 // Offsets inside a character record (Mc::CharaDat in memorycard.h). All
@@ -124,19 +133,71 @@ func (c *Character) Inventory() [InventorySize]int {
 	return items
 }
 
-// Artifacts returns the indices of the artifact flags that are set, in
-// ascending order. Flag n stands for item itemdb.ArtifactBase+n.
+// artifactBit locates the flag of an artifact: the offset of the byte
+// that holds it inside the character record, and the bit in that byte.
+// Flag n is bit n%32 of the big-endian 32-bit word n/32, as the game
+// reads it in CMemoryCardMan::SetLoadData.
+func artifactBit(id int) (off int, mask byte) {
+	flag := id - FirstArtifact
+	bit := flag % 32
+	return offArtifactFlags + 4*(flag/32) + 3 - bit/8, 1 << (bit % 8)
+}
+
+// Artifacts returns the item IDs of the artifacts the character owns, in
+// ascending order.
 func (c *Character) Artifacts() []int {
-	var set []int
-	for word := range artifactWords {
-		flags := binary.BigEndian.Uint32(c.b[offArtifactFlags+4*word:])
-		for bit := range 32 {
-			if flags&(1<<bit) != 0 {
-				set = append(set, word*32+bit)
-			}
+	var owned []int
+	for id := FirstArtifact; id < FirstArtifact+artifactFlags; id++ {
+		if off, mask := artifactBit(id); c.b[off]&mask != 0 {
+			owned = append(owned, id)
 		}
 	}
-	return set
+	return owned
+}
+
+// HasArtifact reports whether the character owns the artifact with the
+// given item ID.
+func (c *Character) HasArtifact(id int) bool {
+	if id < FirstArtifact || id >= FirstArtifact+artifactFlags {
+		return false
+	}
+	off, mask := artifactBit(id)
+	return c.b[off]&mask != 0
+}
+
+// ArtifactRange returns where the flag of an artifact is stored in the
+// decoded slot: the single byte that holds it.
+func (c *Character) ArtifactRange(id int) Range {
+	off, _ := artifactBit(id)
+	start := offCharacters + c.index*characterSize + off
+	return Range{Start: start, End: start + 1}
+}
+
+// AddArtifact grants the character an artifact, given by item ID within
+// ArtifactLimit. It sets the artifact's flag, which is all the game does
+// when a character receives one (CCaravanWork::SetArtifact).
+//
+// An artifact is a single flag, so it cannot be held twice: granting one
+// the character already owns returns ErrAlreadyOwned and changes nothing.
+//
+// The strength, magic, defense and hit points stored in the save are not
+// touched. They are the game's last calculation, and the game works them
+// out again from the artifacts: hit points when it loads the save
+// (SetLoadData), the others on every frame a character is on screen
+// (CGPartyObj::onFrameAlways calling CCaravanWork::CalcStatus).
+func (c *Character) AddArtifact(id int) error {
+	if !c.Exists() {
+		return fmt.Errorf("character record %d is not in use", c.index)
+	}
+	if err := ArtifactLimit.Check(id); err != nil {
+		return err
+	}
+	if c.HasArtifact(id) {
+		return ErrAlreadyOwned
+	}
+	off, mask := artifactBit(id)
+	c.b[off] |= mask
+	return nil
 }
 
 // GilRange returns where the character's gil is stored in the decoded

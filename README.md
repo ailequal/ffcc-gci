@@ -27,13 +27,15 @@ code. A value outside its range is refused and nothing is written.
 |---|---|---|
 | `info` | Show slots, characters, gil, stats, items and artifacts. Read-only. | Available |
 | `set-gil` | Set a character's gil, from 0 to 99,999,999. | Available, tested in-game |
+| `add-artifact` | Grant a character one of the game's 73 artifacts. | Available, in-game test pending |
+| `artifacts` | List the artifacts that can be granted, by what they improve. Read-only. | Available |
 | `limits` | Show every editable value and the range it accepts. Read-only. | Available |
 | `add-item` | Add an allowlisted item to a free inventory slot. | Planned |
-| `add-artifact` | Grant a character an artifact. | Planned |
 
-Strength, magic, defence and max HP are not directly editable: the game
+Strength, magic, defence and hearts are not directly editable: the game
 recomputes them from the character's tribe, equipment and artifacts
-(`CCaravanWork::CalcStatus`).
+(`CCaravanWork::CalcStatus`). Artifacts are the way to raise them, as in normal
+play.
 
 ## Usage
 
@@ -49,6 +51,10 @@ ffcc-gci set-gil -slot 3 -char Alba -gil 50000 save.gci
 
 # Same, but write a new file and leave the save untouched
 ffcc-gci set-gil -slot 3 -char Alba -gil 50000 -o edited.gci save.gci
+
+# See which artifacts exist, then grant one
+ffcc-gci artifacts
+ffcc-gci add-artifact -slot 3 -char Alba -artifact "Sun Pendant" save.gci
 ```
 
 `-slot` and `-char` use the numbers `info` prints. `-char` also takes the
@@ -57,6 +63,17 @@ character's name.
 Dolphin's GCI folder for PAL saves is usually `GC/EUR/Card A/` inside its user
 directory. Saves on a raw memory card image (`.raw`) are not supported; export
 them to `.gci` with Dolphin's memory card manager.
+
+### Artifacts and stats
+
+An artifact is either owned or not. Granting one the character already has
+changes nothing, and nothing is written.
+
+After an artifact is granted, the game counts it as soon as the save is
+loaded: it works out strength, magic, defence, hearts and command slots from
+the artifacts by itself. `ffcc-gci info` lists the new artifact straight away,
+but its hearts and stat numbers are the ones the game last stored in the save,
+so they stay the same until the game has saved again.
 
 ## Safety
 
@@ -80,6 +97,7 @@ them to `.gci` with Dolphin's memory card manager.
 
 | Value | Accepted range | Evidence in the decomp |
 |---|---|---|
+| Artifact | One of the 73 artifacts, item IDs 159 to 231 | Each character has one flag per artifact (`Mc::CharaDat::m_artifactFlags`), and setting a flag is all the game does when a character receives one (`CCaravanWork::SetArtifact`). On load the game rebuilds the artifact list from the flags (`CMemoryCardMan::SetLoadData`) and recomputes hearts; the other stats are recomputed on every frame a character is on screen (`CGPartyObj::onFrameAlways`). The game caps the totals: stats at 99, hearts at 8, command slots at 8 (`CCaravanWork::CalcStatus`). The 23 extra flags are unnamed placeholders and are refused. |
 | Gil | 0 to 99,999,999 | Stored as a 32-bit integer per character (`Mc::CharaDat::m_gil`), copied as-is on load (`CMemoryCardMan::SetLoadData`). The game keeps it within 0 and 99,999,999 (`CCaravanWork::AddGil`, `CanAddGil`). |
 
 ## Build and test

@@ -140,7 +140,8 @@ func TestInfo(t *testing.T) {
 		"1. Alba (Clavat, in party)",
 		"Gil        200",
 		"Hearts     4 of 4",
-		"Stats      strength 10, magic 11, defence 12",
+		"Stats      strength 10, magic 11, defence 12\n",
+		"Hearts and stats are the numbers the game last stored",
 		"Items      3 of 64: Copper Sword, Phoenix Down x2",
 		"Artifacts  0\n",
 		"2. Bruno (Selkie, in party)",
@@ -435,5 +436,205 @@ func TestSetGilThroughSymlink(t *testing.T) {
 	}
 	if gil := gilOf(t, path, 0, 0); gil != 42 {
 		t.Errorf("gil in the link's target = %d, want 42", gil)
+	}
+}
+
+// artifactsOf reads the artifacts of a character from a save file on disk.
+func artifactsOf(t *testing.T, path string, slot, character int) []int {
+	t.Helper()
+	f, err := openSave(path)
+	if err != nil {
+		t.Fatalf("openSave: %v", err)
+	}
+	s, err := f.data.Slot(slot)
+	if err != nil {
+		t.Fatalf("Slot(%d): %v", slot, err)
+	}
+	c, err := s.Character(character)
+	if err != nil {
+		t.Fatalf("Character(%d): %v", character, err)
+	}
+	return c.Artifacts()
+}
+
+func TestArtifactsList(t *testing.T) {
+	got := run("artifacts")
+
+	if got.code != ExitOK {
+		t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
+	}
+	for _, want := range []string{
+		"Strength\n  159  Shuriken\n",
+		"Magic\n  182  Drgn. Whisker\n",
+		"Defence\n  204  Main Gauche\n",
+		"Command slots\n  219  Moogle Pocket\n",
+		"Spell rings\n  223  Fire Ring\n",
+		"Hearts\n  228  Earth Pendant\n",
+		"  231  Sun Pendant\n",
+	} {
+		if !strings.Contains(got.stdout, want) {
+			t.Errorf("output lacks %q\n%s", want, got.stdout)
+		}
+	}
+	if n := strings.Count(got.stdout, "\n  "); n != 73 {
+		t.Errorf("listed %d artifacts, want 73", n)
+	}
+	if strings.Contains(got.stdout, "Equip.") {
+		t.Error("the list includes an unnamed placeholder")
+	}
+}
+
+func TestArtifactsFilter(t *testing.T) {
+	got := run("artifacts", "pendant")
+	if got.code != ExitOK || strings.Count(got.stdout, "Pendant") != 4 || strings.Contains(got.stdout, "Shuriken") {
+		t.Errorf("exit code = %d, output:\n%s", got.code, got.stdout)
+	}
+
+	none := run("artifacts", "zzz")
+	if none.code != ExitError || !strings.Contains(none.stderr, `no artifact name contains "zzz"`) {
+		t.Errorf("exit code = %d, stderr = %q", none.code, none.stderr)
+	}
+}
+
+func TestAddArtifact(t *testing.T) {
+	tests := []struct {
+		name     string
+		artifact string
+		wantID   int
+		wantLine string
+	}{
+		{name: "exact name", artifact: "Sun Pendant", wantID: 0xE7, wantLine: "Slot 1, Alba: added artifact Sun Pendant (hearts)"},
+		{name: "name in another case", artifact: "mage masher", wantID: 0xB7, wantLine: "added artifact Mage Masher (magic)"},
+		{name: "unique part of a name", artifact: "kaiser", wantID: 0xA3, wantLine: "added artifact Kaiser Knckls. (strength)"},
+		{name: "exact name that is also part of others", artifact: "Kris", wantID: 0xC6, wantLine: "added artifact Kris (magic)"},
+		{name: "item ID", artifact: "219", wantID: 0xDB, wantLine: "added artifact Moogle Pocket (command slots)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fixClock(t)
+			path, original := writeSample(t)
+
+			got := run("add-artifact", "-slot", "1", "-char", "Alba", "-artifact", tt.artifact, path)
+
+			if got.code != ExitOK {
+				t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
+			}
+			if !strings.Contains(got.stdout, tt.wantLine) {
+				t.Errorf("stdout = %q, want it to contain %q", got.stdout, tt.wantLine)
+			}
+			if !strings.Contains(got.stdout, "until the game saves") {
+				t.Errorf("stdout = %q, want the note about stored stats", got.stdout)
+			}
+			if owned := artifactsOf(t, path, 0, 0); len(owned) != 1 || owned[0] != tt.wantID {
+				t.Errorf("Alba's artifacts = %#x, want [%#x]", owned, tt.wantID)
+			}
+			if owned := artifactsOf(t, path, 0, 1); len(owned) != 2 {
+				t.Errorf("Bruno's artifacts = %#x, want his two untouched", owned)
+			}
+			if gil := gilOf(t, path, 0, 0); gil != 200 {
+				t.Errorf("Alba's gil = %d, want it untouched at 200", gil)
+			}
+			if !bytes.Equal(mustRead(t, path+".20261115-143005.bak"), original) {
+				t.Error("the backup is not identical to the original save")
+			}
+		})
+	}
+}
+
+func TestAddArtifactAlreadyOwnedWritesNothing(t *testing.T) {
+	path, original := writeSample(t)
+
+	// Bruno owns Maneater and Mage Masher in the sample.
+	got := run("add-artifact", "-slot", "1", "-char", "Bruno", "-artifact", "Maneater", path)
+
+	if got.code != ExitOK || !strings.Contains(got.stdout, "already has Maneater") || !strings.Contains(got.stdout, "Nothing written") {
+		t.Errorf("exit code = %d, stdout = %q", got.code, got.stdout)
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || !bytes.Equal(mustRead(t, path), original) {
+		t.Error("the save was rewritten or a backup was made")
+	}
+}
+
+func TestAddArtifactToNewFile(t *testing.T) {
+	path, original := writeSample(t)
+	out := filepath.Join(t.TempDir(), "edited.gci")
+
+	got := run("add-artifact", "-slot", "1", "-char", "2", "-artifact", "Ribbon", "-o", out, path)
+
+	if got.code != ExitOK {
+		t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
+	}
+	if owned := artifactsOf(t, out, 0, 1); len(owned) != 3 {
+		t.Errorf("artifacts in the new file = %#x, want three", owned)
+	}
+	if !bytes.Equal(mustRead(t, path), original) {
+		t.Error("the original save was modified")
+	}
+}
+
+func TestAddArtifactRefuses(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string // the save path is appended
+		wantCode int
+		want     string
+	}{
+		{name: "missing artifact", args: []string{"-slot", "1", "-char", "Alba"}, wantCode: ExitUsage, want: "needs -artifact"},
+		{name: "missing slot", args: []string{"-char", "Alba", "-artifact", "Ribbon"}, wantCode: ExitUsage, want: "needs -slot"},
+		{name: "unknown name", args: []string{"-slot", "1", "-char", "Alba", "-artifact", "Excalibur"}, wantCode: ExitUsage, want: `no artifact is named "Excalibur"`},
+		{name: "ambiguous name", args: []string{"-slot", "1", "-char", "Alba", "-artifact", "pendant"}, wantCode: ExitUsage, want: "matches 4 artifacts, be more specific: Earth Pendant, Moon Pendant, Star Pendant, Sun Pendant"},
+		{name: "placeholder by name", args: []string{"-slot", "1", "-char", "Alba", "-artifact", "Equip. 187"}, wantCode: ExitUsage, want: "no artifact is named"},
+		{name: "placeholder by ID", args: []string{"-slot", "1", "-char", "Alba", "-artifact", "232"}, wantCode: ExitUsage, want: "artifact item ID must be between 159 and 231, got 232"},
+		{name: "ID below the range", args: []string{"-slot", "1", "-char", "Alba", "-artifact", "158"}, wantCode: ExitUsage, want: "artifact item ID must be between 159 and 231, got 158"},
+		{name: "non-artifact item ID", args: []string{"-slot", "1", "-char", "Alba", "-artifact", "293"}, wantCode: ExitUsage, want: "between 159 and 231"},
+		{name: "empty slot", args: []string{"-slot", "4", "-char", "Alba", "-artifact", "Ribbon"}, wantCode: ExitError, want: "slot is empty"},
+		{name: "unknown character", args: []string{"-slot", "1", "-char", "Zed", "-artifact", "Ribbon"}, wantCode: ExitError, want: `no character named "Zed"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path, original := writeSample(t)
+
+			got := run(append(append([]string{"add-artifact"}, tt.args...), path)...)
+
+			if got.code != tt.wantCode || !strings.Contains(got.stderr, tt.want) {
+				t.Errorf("exit code = %d, stderr = %q, want code %d and %q", got.code, got.stderr, tt.wantCode, tt.want)
+			}
+			entries, err := os.ReadDir(filepath.Dir(path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 1 || !bytes.Equal(mustRead(t, path), original) {
+				t.Error("a refused edit left a changed save or extra files behind")
+			}
+		})
+	}
+}
+
+// TestEveryGrantableArtifactIsNamed makes sure the artifact range holds
+// only real, uniquely named artifacts with a known effect.
+func TestEveryGrantableArtifactIsNamed(t *testing.T) {
+	seen := make(map[string]bool)
+	for id := save.ArtifactLimit.Min; id <= save.ArtifactLimit.Max; id++ {
+		name := artifactName(id)
+		if name == "" || strings.HasPrefix(name, "Equip.") {
+			t.Errorf("item %d has no real name: %q", id, name)
+		}
+		if seen[strings.ToLower(name)] {
+			t.Errorf("artifact name %q is used twice", name)
+		}
+		seen[strings.ToLower(name)] = true
+
+		if got, err := findArtifact(name); err != nil || got != id {
+			t.Errorf("findArtifact(%q) = %d, %v; want %d", name, got, err, id)
+		}
+	}
+	if len(seen) != 73 {
+		t.Errorf("%d artifacts in range, want 73", len(seen))
 	}
 }

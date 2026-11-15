@@ -71,3 +71,10 @@ func TestSetGilEnforcesLimit(t *testing.T) {
 		t.Errorf("gil = %d after refused edits, want it unchanged at %d", c.Gil(), limit.Max)
 	}
 }
+
+func TestArtifactLimitCoversTheNamedArtifacts(t *testing.T) {
+	limit := save.ArtifactLimit
+	if limit.Min != 0x9F || limit.Max != 0xE7 {
+		t.Fatalf("ArtifactLimit = %#x-%#x, want 0x9f-0xe7 (Shuriken to Sun Pendant)", limit.Min, limit.Max)
+	}
+}

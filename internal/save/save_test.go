@@ -152,7 +152,9 @@ func TestSlotFields(t *testing.T) {
 	if bruno.Tribe() != save.Selkie {
 		t.Errorf("character 1 tribe = %v, want Selkie", bruno.Tribe())
 	}
-	if got, want := bruno.Artifacts(), []int{1, 24, 60, 69}; !slices.Equal(got, want) {
+	// savetest sets flags 1, 24, 60 and 69: Maneater, Mage Masher, Moogle
+	// Pocket and Earth Pendant.
+	if got, want := bruno.Artifacts(), []int{0xA0, 0xB7, 0xDB, 0xE4}; !slices.Equal(got, want) {
 		t.Errorf("character 1 artifacts = %v, want %v", got, want)
 	}
 

@@ -5,9 +5,13 @@ import (
 	"fmt"
 )
 
-// ErrOutOfRange reports a value outside the range an editable field
-// accepts.
-var ErrOutOfRange = errors.New("value out of range")
+var (
+	// ErrOutOfRange reports a value outside the range an editable field
+	// accepts.
+	ErrOutOfRange = errors.New("value out of range")
+	// ErrAlreadyOwned reports an artifact the character already has.
+	ErrAlreadyOwned = errors.New("the character already owns this artifact")
+)
 
 // Limit is the range of values an editable field accepts.
 //
@@ -39,7 +43,20 @@ var GilLimit = Limit{
 		"and CCaravanWork::CanAddGil refuses to go past it (src/gobjwork.cpp).",
 }
 
+// ArtifactLimit is the range of item IDs that can be granted as an
+// artifact.
+var ArtifactLimit = Limit{
+	Name: "artifact item ID",
+	Min:  FirstArtifact,
+	Max:  LastArtifact,
+	Source: "These are the game's 73 artifacts. A character has a flag for each, and for 23 more " +
+		"item IDs that are unnamed placeholders and are refused (CMemoryCardMan::SetLoadData). " +
+		"A flag is on or off, so an artifact cannot be held twice. The game caps what artifacts " +
+		"add: strength, magic and defence at 99, hearts at 8, command slots at 8 " +
+		"(CCaravanWork::CalcStatus).",
+}
+
 // Limits returns the limit of every value this package can change.
 func Limits() []Limit {
-	return []Limit{GilLimit}
+	return []Limit{GilLimit, ArtifactLimit}
 }

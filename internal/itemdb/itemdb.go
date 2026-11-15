@@ -10,15 +10,6 @@ import (
 	"strings"
 )
 
-const (
-	// ArtifactBase is the item ID of the first artifact. A character's
-	// artifact flag n stands for item ArtifactBase+n (see SetLoadData in
-	// the decomp's src/memorycard.cpp).
-	ArtifactBase = 0x9F
-	// ArtifactCount is the number of artifact flags a character has.
-	ArtifactCount = 96
-)
-
 //go:embed names_pal_en.txt
 var namesFile string
 
@@ -36,4 +27,37 @@ func Name(id int) (string, bool) {
 		return "", false
 	}
 	return names[id], true
+}
+
+// artifactGroups are the groups the game's item table sorts artifacts
+// into, each with the item ID it starts at. CCaravanWork::CalcArtifactStatus
+// adds an artifact's value to the stat of its group.
+var artifactGroups = []struct {
+	first  int
+	effect string
+}{
+	{0x9F, "Strength"},
+	{0xB6, "Magic"},
+	{0xCC, "Defence"},
+	{0xDB, "Command slots"},
+	{0xDF, "Spell rings"},
+	{0xE4, "Hearts"},
+	{0xE8, ""}, // unnamed placeholders start here
+}
+
+// ArtifactEffect returns what the artifact with the given item ID
+// improves, such as "Strength". The second result is false when the ID
+// is not an artifact.
+func ArtifactEffect(id int) (string, bool) {
+	if id < artifactGroups[0].first {
+		return "", false
+	}
+	effect := ""
+	for _, g := range artifactGroups {
+		if id < g.first {
+			break
+		}
+		effect = g.effect
+	}
+	return effect, effect != ""
 }
