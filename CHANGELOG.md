@@ -1,0 +1,33 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!--
+To release: add a "## [X.Y.Z] - YYYY-MM-DD" heading below "## [Unreleased]",
+so that the entries become part of the new version, and update the links at
+the bottom: point [unreleased] to .../compare/vX.Y.Z...HEAD and add
+[X.Y.Z]: .../releases/tag/vX.Y.Z (or .../compare/vPREVIOUS...vX.Y.Z).
+Pushing that commit to main publishes the release and creates the tag.
+-->
+
+## [Unreleased]
+
+### Added
+
+- `info` command that shows the four save slots of a PAL save and every character with gil, hearts, stats, items and artifacts, without changing the file.
+- `set-gil` command that sets a character's gil, from 0 to 99,999,999.
+- `add-artifact` command that grants a character one of the game's 73 artifacts, and `artifacts` command that lists them by what they improve.
+- `add-item` command that adds Phoenix Down, materials, food and designs to a character's inventory, 164 items in all, and `items` command that lists them.
+- `limits` command that shows every value the program can set, its accepted range and the evidence that the range is safe.
+- `help` command with the flags and examples of each command, `help -all` for every command at once and `help -markdown` for the reference in Markdown.
+- `version` command that prints the version, the Go toolchain and the platform.
+- Validation of a save before any edit: game code, file size, and the header tags, region and checksum of the slot, as the game checks them on load.
+- Backup of the original save as `<save.gci>.<date-time>.bak` before an edit in place, and `-o` to write a new file instead.
+- Check of every edit before it is written: the edited file is decoded again, and nothing is written if anything but the intended bytes and the checksum changed.
+- Usage reference in `docs/USAGE.md`, generated from the program's own help, and save format notes in `docs/SAVE_FORMAT.md`.
+- Release archives for Linux, macOS and Windows on amd64 and arm64, built by a workflow when a new version in this file reaches the `main` branch, smoke-tested on each platform and published with SHA-256 checksums and build provenance attestations.
+
+[unreleased]: https://github.com/ailequal/ffcc-gci/commits/main
