@@ -10,6 +10,7 @@ import (
 	"github.com/ailequal/ffcc-gci/internal/save"
 )
 
+// setGilUsage is a format string; it takes the lowest and highest gil.
 const setGilUsage = `Set a character's gil.
 
 Usage:
@@ -18,7 +19,8 @@ Usage:
 Flags:
   -slot  Save slot to edit, as numbered by "ffcc-gci info".
   -char  Character to edit: the name, or the number "ffcc-gci info" shows.
-  -gil   New amount of gil, 0 to 99999999 (the game's own limit).
+  -gil   New amount of gil, %d to %d. This is the range the game itself
+         keeps gil in; anything outside it is refused.
   -o     Write the result to this new file and leave the save untouched.
 
 Without -o the save is edited in place, and the original is first copied
@@ -28,7 +30,8 @@ Close Dolphin before editing: it rewrites the save while a game runs.
 `
 
 func runSetGil(args []string, stdout, stderr io.Writer) error {
-	fs := newFlagSet("set-gil", stderr, setGilUsage)
+	limit := save.GilLimit
+	fs := newFlagSet("set-gil", stderr, fmt.Sprintf(setGilUsage, limit.Min, limit.Max))
 	slotNumber := fs.Int("slot", 0, "")
 	charSel := fs.String("char", "", "")
 	gil := fs.Int("gil", 0, "")
@@ -49,8 +52,8 @@ func runSetGil(args []string, stdout, stderr io.Writer) error {
 	if *slotNumber < 1 || *slotNumber > save.SlotCount {
 		return usagef("-slot must be between 1 and %d, got %d", save.SlotCount, *slotNumber)
 	}
-	if *gil < 0 || *gil > save.MaxGil {
-		return usagef("-gil must be between 0 and %d, got %d", save.MaxGil, *gil)
+	if err := limit.Check(*gil); err != nil {
+		return usagef("%v; nothing was written", err)
 	}
 	slotIndex := *slotNumber - 1
 

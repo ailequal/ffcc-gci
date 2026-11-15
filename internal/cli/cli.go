@@ -32,6 +32,7 @@ type command struct {
 var commands = []command{
 	{name: "info", summary: "Show the slots and characters of a save file", run: runInfo},
 	{name: "set-gil", summary: "Set a character's gil", run: runSetGil},
+	{name: "limits", summary: "Show every editable value and its allowed range", run: runLimits},
 }
 
 // usageError is a mistake in the command line, as opposed to a command

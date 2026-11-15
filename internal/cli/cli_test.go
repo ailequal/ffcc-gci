@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -270,6 +271,55 @@ func TestSetGilToNewFile(t *testing.T) {
 	}
 }
 
+// TestSetGilAcceptsBothEndsOfTheRange sets the lowest and the highest
+// value the limit allows.
+func TestSetGilAcceptsBothEndsOfTheRange(t *testing.T) {
+	for _, gil := range []int{save.GilLimit.Min, save.GilLimit.Max} {
+		path, _ := writeSample(t)
+
+		got := run("set-gil", "-slot", "1", "-char", "Alba", "-gil", fmt.Sprint(gil), path)
+
+		if got.code != ExitOK {
+			t.Errorf("gil %d: exit code = %d, stderr = %q", gil, got.code, got.stderr)
+		}
+		if after := gilOf(t, path, 0, 0); after != gil {
+			t.Errorf("gil = %d, want %d", after, gil)
+		}
+	}
+}
+
+func TestLimits(t *testing.T) {
+	got := run("limits")
+
+	if got.code != ExitOK {
+		t.Fatalf("exit code = %d, stderr = %q", got.code, got.stderr)
+	}
+	for _, l := range save.Limits() {
+		want := fmt.Sprintf("%s: %d to %d", l.Name, l.Min, l.Max)
+		if !strings.Contains(got.stdout, want) || !strings.Contains(got.stdout, l.Source) {
+			t.Errorf("output lacks the %q limit or its source\n%s", l.Name, got.stdout)
+		}
+	}
+	for _, want := range []string{"slot: 1 to 4", "character: 1 to 8"} {
+		if !strings.Contains(got.stdout, want) {
+			t.Errorf("output lacks %q", want)
+		}
+	}
+
+	if extra := run("limits", "unexpected"); extra.code != ExitUsage {
+		t.Errorf("limits with an argument: exit code = %d, want %d", extra.code, ExitUsage)
+	}
+}
+
+func TestSetGilHelpStatesTheRange(t *testing.T) {
+	got := run("set-gil", "-h")
+
+	want := fmt.Sprintf("%d to %d", save.GilLimit.Min, save.GilLimit.Max)
+	if got.code != ExitOK || !strings.Contains(got.stderr, want) {
+		t.Errorf("exit code = %d, help = %q, want it to state %q", got.code, got.stderr, want)
+	}
+}
+
 func TestSetGilSameValueWritesNothing(t *testing.T) {
 	path, original := writeSample(t)
 
@@ -298,8 +348,8 @@ func TestSetGilRefuses(t *testing.T) {
 		{name: "missing char", args: []string{"-slot", "1", "-gil", "1"}, wantCode: ExitUsage, want: "needs -char"},
 		{name: "missing gil", args: []string{"-slot", "1", "-char", "Alba"}, wantCode: ExitUsage, want: "needs -gil"},
 		{name: "slot out of range", args: []string{"-slot", "5", "-char", "Alba", "-gil", "1"}, wantCode: ExitUsage, want: "between 1 and 4"},
-		{name: "negative gil", args: []string{"-slot", "1", "-char", "Alba", "-gil", "-1"}, wantCode: ExitUsage, want: "between 0 and 99999999"},
-		{name: "gil above the cap", args: []string{"-slot", "1", "-char", "Alba", "-gil", "100000000"}, wantCode: ExitUsage, want: "between 0 and 99999999"},
+		{name: "negative gil", args: []string{"-slot", "1", "-char", "Alba", "-gil", "-1"}, wantCode: ExitUsage, want: "gil must be between 0 and 99999999, got -1"},
+		{name: "gil above the cap", args: []string{"-slot", "1", "-char", "Alba", "-gil", "100000000"}, wantCode: ExitUsage, want: "gil must be between 0 and 99999999, got 100000000"},
 		{name: "gil not a number", args: []string{"-slot", "1", "-char", "Alba", "-gil", "lots"}, wantCode: ExitUsage, want: "invalid value"},
 		{name: "empty slot", args: []string{"-slot", "2", "-char", "Alba", "-gil", "1"}, wantCode: ExitError, want: "slot is empty"},
 		{name: "unknown name", args: []string{"-slot", "1", "-char", "Zed", "-gil", "1"}, wantCode: ExitError, want: `no character named "Zed"; available: 1 (Alba), 2 (Bruno)`},

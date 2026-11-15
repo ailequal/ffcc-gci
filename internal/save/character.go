@@ -146,14 +146,14 @@ func (c *Character) GilRange() Range {
 	return Range{Start: start, End: start + 4}
 }
 
-// SetGil sets the character's money. The value must be within 0 and
-// MaxGil, the range the game itself keeps gil in.
+// SetGil sets the character's money. The value must be within GilLimit,
+// the range the game itself keeps gil in.
 func (c *Character) SetGil(gil int) error {
 	if !c.Exists() {
 		return fmt.Errorf("character record %d is not in use", c.index)
 	}
-	if gil < 0 || gil > MaxGil {
-		return fmt.Errorf("gil %d is out of range 0-%d", gil, MaxGil)
+	if err := GilLimit.Check(gil); err != nil {
+		return err
 	}
 	binary.BigEndian.PutUint32(c.b[offGil:], uint32(gil))
 	return nil

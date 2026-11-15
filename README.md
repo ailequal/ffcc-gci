@@ -17,12 +17,17 @@ Edit only what is safe. An edit is added only when both of these hold:
 
 Anything that cannot be confirmed that way stays out.
 
+Every value the tool can set has a fixed range, taken from the game's own
+code. A value outside its range is refused and nothing is written.
+`ffcc-gci limits` lists every range and the evidence behind it.
+
 ## Commands
 
 | Command | What it does | Status |
 |---|---|---|
 | `info` | Show slots, characters, gil, stats, items and artifacts. Read-only. | Available |
-| `set-gil` | Set a character's gil, from 0 to 99,999,999. | Available, in-game test pending |
+| `set-gil` | Set a character's gil, from 0 to 99,999,999. | Available, tested in-game |
+| `limits` | Show every editable value and the range it accepts. Read-only. | Available |
 | `add-item` | Add an allowlisted item to a free inventory slot. | Planned |
 | `add-artifact` | Grant a character an artifact. | Planned |
 
@@ -62,19 +67,20 @@ them to `.gci` with Dolphin's memory card manager.
   `<save.gci>.<date-time>.bak`. The backup does not end in `.gci` on purpose:
   Dolphin loads every `.gci` in a card folder and rejects duplicates. For the
   same reason, do not put a `-o` output next to the original in that folder.
-- **Limits come from the game.** Values are restricted to the range the game
-  keeps them in.
+- **Limits come from the game.** Each value is restricted to the range the
+  game itself keeps it in, and the range is checked twice: when the command
+  line is read and again when the value is stored.
 - **Self-check before writing.** The edited file is decoded again and compared
   with the original; if anything other than the intended field and the
   checksum changed, nothing is written.
 - **No half-written saves.** The new file is written beside the save and
   renamed over it in one step.
 
-## Why each edit is safe
+## Limits and why each edit is safe
 
-| Edit | Evidence in the decomp |
-|---|---|
-| Gil | Stored as a 32-bit integer per character (`Mc::CharaDat::m_gil`), copied as-is on load (`CMemoryCardMan::SetLoadData`). The game keeps it within 0 and 99,999,999 (`CCaravanWork::AddGil`, `CanAddGil`). |
+| Value | Accepted range | Evidence in the decomp |
+|---|---|---|
+| Gil | 0 to 99,999,999 | Stored as a 32-bit integer per character (`Mc::CharaDat::m_gil`), copied as-is on load (`CMemoryCardMan::SetLoadData`). The game keeps it within 0 and 99,999,999 (`CCaravanWork::AddGil`, `CanAddGil`). |
 
 ## Build and test
 
