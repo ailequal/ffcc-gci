@@ -241,7 +241,7 @@ jobs:
           | Windows (x86-64) | \`ffcc-gci-$TAG-windows-amd64.zip\` |
           | Windows (ARM64) | \`ffcc-gci-$TAG-windows-arm64.zip\` |
 
-          Each archive holds the \`ffcc-gci\` binary, the README, the usage reference, the changelog and the license. Unpack it and run \`ffcc-gci help\`.
+          Each archive holds the \`ffcc-gci\` binary, the README, the guide, the usage reference, the changelog and the license. Unpack it and run \`ffcc-gci help\`.
 
           The binaries are not signed by Apple or Microsoft: on macOS run \`xattr -d com.apple.quarantine ffcc-gci\` once (or right-click it and choose Open); on Windows choose **More info, Run anyway** in the SmartScreen prompt.
 

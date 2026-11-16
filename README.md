@@ -22,7 +22,7 @@ itself. Everything else is refused.
 | Add items to a character's inventory | `add-item` | Phoenix Down, materials, food and designs: 164 items, up to 64 per character |
 | Make the same edits by answering questions | `menu` | The same values |
 
-Every edit was confirmed in the real game on a PAL save.
+Each kind of edit was confirmed in the real game on a PAL save.
 
 Strength, magic, defence and hearts cannot be set directly, because the game
 recalculates them. Artifacts are the way to raise them, as in normal play.
@@ -114,7 +114,12 @@ Save: /home/you/.local/share/dolphin-emu/GC/EUR/Card A/01-GCCP-FFCC.gci
 The menu is part of the program: there is nothing else to install. It needs a
 terminal to run in, so in a script use the other commands.
 
-## Reference
+## Guide and reference
+
+**[docs/GUIDE.md](docs/GUIDE.md) is the step-by-step guide**: where Dolphin
+keeps the save, how to edit it with the menu or with commands, what to look
+for in the game afterwards, how to undo an edit, and what to do when the
+program refuses.
 
 **[docs/USAGE.md](docs/USAGE.md) is the full reference**: every command, flag
 and example, and the lists of all artifacts and items. The program prints the
@@ -131,9 +136,11 @@ ffcc-gci help -all          # everything at once
 - **Close Dolphin, or at least stop the game.** Dolphin keeps the save in
   memory while a game runs and writes it back, which would undo your edit.
 - **Find the save.** It is a `.gci` file in Dolphin's GCI folder, usually
-  `GC/EUR/Card A/` inside Dolphin's user directory. Saves on a raw memory card
-  image (`.raw`) are not supported; export them to `.gci` with Dolphin's
-  memory card manager.
+  `GC/EUR/Card A/` inside Dolphin's user directory; `ffcc-gci menu` looks
+  there for you, and the [guide](docs/GUIDE.md#1-find-your-save) says where
+  that directory is on each system. The path has a space in it, so quote it.
+  Saves on a raw memory card image (`.raw`) are not supported; export them to
+  `.gci` with Dolphin's memory card manager.
 - **Know how to undo.** An edit first copies the original to
   `<save.gci>.<date-time>.bak` next to the save. To undo, copy that file back
   over the save. Every edit makes a backup of its own, so the oldest one is
@@ -189,16 +196,19 @@ Safety comes first, so the tool refuses whatever it cannot prove safe.
 
 | Document | Content |
 |---|---|
+| [docs/GUIDE.md](docs/GUIDE.md) | Step by step: finding the save, looking at it, editing with the menu or with commands, checking the result in the game, undoing an edit, and what each refusal means. |
 | [docs/USAGE.md](docs/USAGE.md) | Every command, flag, example and accepted value, with the full lists of artifacts and items. |
 | [docs/SAVE_FORMAT.md](docs/SAVE_FORMAT.md) | The save file format, what the game recalculates, and the evidence that makes each edit safe. |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version. |
 
 ## Getting help
 
-Start with `ffcc-gci help <command>` and [docs/USAGE.md](docs/USAGE.md). For a
-problem or a question, open an issue at
+Start with the [guide](docs/GUIDE.md), which explains the messages the program
+prints when it refuses, then `ffcc-gci help <command>` and
+[docs/USAGE.md](docs/USAGE.md). For a problem or a question, open an issue at
 <https://github.com/ailequal/ffcc-gci/issues>. If the game rejects an edited
-save, restore the `.bak` file and include the output of `ffcc-gci info` on it.
+save, [restore a backup](docs/GUIDE.md#6-undo-an-edit) and include the output
+of `ffcc-gci info` on the save in the issue.
 
 ## Development
 
@@ -228,6 +238,11 @@ program prints and `docs/USAGE.md` are both rendered from that description,
 and a test fails when the document is out of date. Another test runs every
 example in it against a sample save.
 
+`docs/GUIDE.md` and this README are written by hand, and tested as well:
+every `ffcc-gci` command line in them is run against a sample save, every
+message the guide quotes is compared with what the program prints, and every
+link between the documents is followed.
+
 Everything that reads or writes a save uses only Go's standard library. The
 menu is drawn with [huh](https://github.com/charmbracelet/huh), which is
 compiled into the program.
@@ -250,7 +265,7 @@ against a real PAL save, put one at `testdata/pal.gci` (git-ignored).
 | `internal/save` | Save slots: decoding, checksum, character fields, limits, edit verification. |
 | `internal/save/savetest` | Synthetic saves for tests. |
 | `internal/itemdb` | Item IDs, names and the game's own description of each item. |
-| `docs` | The usage reference and the save format notes. |
+| `docs` | The guide, the usage reference and the save format notes. |
 | `scripts` | The release build and the changelog reader used by the workflow. |
 | `.github` | The CI and release workflow, and the dependency update settings. |
 

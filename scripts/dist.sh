@@ -30,7 +30,7 @@ for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 wi
   CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$ldflags" \
     -o "dist/$name/ffcc-gci$ext" ./cmd/ffcc-gci
   cp README.md LICENSE CHANGELOG.md "dist/$name/"
-  cp docs/USAGE.md docs/SAVE_FORMAT.md "dist/$name/docs/"
+  cp docs/GUIDE.md docs/USAGE.md docs/SAVE_FORMAT.md "dist/$name/docs/"
 
   if [ "$os" = windows ]; then
     (cd dist && zip -qr "$name.zip" "$name")

@@ -26,9 +26,9 @@ Pushing that commit to main publishes the release and creates the tag.
 - `help` command with the flags and examples of each command, `help -all` for every command at once and `help -markdown` for the reference in Markdown.
 - `version` command that prints the version, the Go toolchain and the platform.
 - Validation of a save before any edit: game code, file size, and the header tags, region and checksum of the slot, as the game checks them on load.
-- Backup of the original save as `<save.gci>.<date-time>.bak` before an edit in place, and `-o` to write a new file instead.
+- Backup of the original save as `<save.gci>.<date-time>.bak` before every edit in place, numbered when several fall in the same second, and `-o` to write a new file instead.
 - Check of every edit before it is written: the edited file is decoded again, and nothing is written if anything but the intended bytes and the checksum changed.
-- Usage reference in `docs/USAGE.md`, generated from the program's own help, and save format notes in `docs/SAVE_FORMAT.md`.
+- Step-by-step guide in `docs/GUIDE.md`, usage reference in `docs/USAGE.md`, generated from the program's own help, and save format notes in `docs/SAVE_FORMAT.md`.
 - Release archives for Linux, macOS and Windows on amd64 and arm64, built by a workflow when a new version in this file reaches the `main` branch, smoke-tested on each platform and published with SHA-256 checksums and build provenance attestations.
 
 [unreleased]: https://github.com/ailequal/ffcc-gci/commits/main
