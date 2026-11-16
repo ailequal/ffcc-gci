@@ -1002,6 +1002,9 @@ func TestExamplesAreAccepted(t *testing.T) {
 	for _, c := range commands {
 		for _, ex := range c.examples {
 			t.Run(ex.line, func(t *testing.T) {
+				if c.name == "menu" {
+					useScript(t, ctrlC) // the menu opens and the user leaves it
+				}
 				dir := t.TempDir()
 				// The sample has Alba in slot 1; the examples use slot 3.
 				content := savetest.GCI(nil, nil, &savetest.Slot{

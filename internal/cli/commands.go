@@ -54,6 +54,30 @@ var editNotes = []string{
 // commands lists the subcommands in the order help shows them.
 var commands = []*command{
 	{
+		name:     "menu",
+		summary:  "Edit a save by answering questions instead of typing flags",
+		synopsis: "[save.gci]",
+		notes: []string{
+			"The menu asks which slot and character to edit and what to change: the gil, an " +
+				"artifact or an item. It lists only what that character can receive, and typing " +
+				"narrows a long list down. Esc goes back one step and Ctrl+C quits.",
+			"The menu changes nothing by itself. For each edit it shows the set-gil, " +
+				"add-artifact or add-item command that does the same, asks for confirmation and " +
+				"runs that command. The edit is therefore checked and backed up exactly as one " +
+				"made with flags. To write to a new file with -o, use those commands.",
+			"Without a save file, the menu offers the saves it finds in Dolphin's European " +
+				"memory card folders, GC/EUR/Card A and Card B, or lets you browse for a file.",
+			"The menu is part of the program and needs nothing else installed. It has to run " +
+				"in a terminal: in a script, use the other commands.",
+			"Close Dolphin before editing: it rewrites the save while a game runs.",
+		},
+		examples: []example{
+			{"Edit a save through the menu", "ffcc-gci menu save.gci"},
+			{"Let the menu find the save in Dolphin's folders", "ffcc-gci menu"},
+		},
+		// run is set in menu.go.
+	},
+	{
 		name:     "info",
 		summary:  "Show the slots and characters of a save file",
 		synopsis: "<save.gci>",
