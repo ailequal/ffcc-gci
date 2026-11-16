@@ -83,14 +83,36 @@ func (f *saveFile) writeInPlace(content []byte) (backup string, err error) {
 		return "", fmt.Errorf("%s changed on disk while it was being edited; is Dolphin running? Nothing was written", f.path)
 	}
 
-	backup = f.path + "." + now().Format(backupTimeFormat) + ".bak"
-	if err := writeNew(backup, f.raw, f.mode); err != nil {
+	backup, err = f.writeBackup()
+	if err != nil {
 		return "", fmt.Errorf("could not write the backup, so the save was left untouched: %w", err)
 	}
 	if err := replaceFile(f.path, content, f.mode); err != nil {
 		return backup, err
 	}
 	return backup, nil
+}
+
+// maxBackupsPerSecond bounds the search for a free backup name.
+const maxBackupsPerSecond = 100
+
+// writeBackup saves the original bytes of the file next to it and
+// returns the path of the backup. The name carries the time to the
+// second; a further edit within that second gets a number as well, so
+// that no backup is ever overwritten and no edit is refused for it.
+func (f *saveFile) writeBackup() (string, error) {
+	stamp := f.path + "." + now().Format(backupTimeFormat)
+	backup := stamp + ".bak"
+	for n := 2; ; n++ {
+		err := writeNew(backup, f.raw, f.mode)
+		if err == nil {
+			return backup, nil
+		}
+		if !errors.Is(err, fs.ErrExist) || n > maxBackupsPerSecond {
+			return "", err
+		}
+		backup = fmt.Sprintf("%s-%d.bak", stamp, n)
+	}
 }
 
 // writeNew writes content to a file that must not exist yet.

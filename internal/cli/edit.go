@@ -72,7 +72,7 @@ func (e *edit) who() string {
 // commit writes the edited slot to disk. allowed lists the parts of the
 // decoded slot the edit was meant to change; if anything else differs
 // from the original, nothing is written. summary is printed once the
-// edit has passed that check.
+// edit has been written.
 func (e *edit) commit(stdout io.Writer, summary string, allowed ...save.Range) error {
 	slotIndex := e.slotNumber - 1
 
@@ -88,12 +88,12 @@ func (e *edit) commit(stdout io.Writer, summary string, allowed ...save.Range) e
 	}
 	content := e.file.withData(edited)
 
-	fmt.Fprintln(stdout, summary)
+	// The summary is printed only once the edit is on disk.
 	if e.output != "" {
 		if err := writeNew(e.output, content, e.file.mode); err != nil {
 			return fmt.Errorf("could not write the new file: %w", err)
 		}
-		fmt.Fprintf(stdout, "Written to %s; %s is unchanged.\n", e.output, e.file.path)
+		fmt.Fprintf(stdout, "%s\nWritten to %s; %s is unchanged.\n", summary, e.output, e.file.path)
 		return nil
 	}
 
@@ -104,7 +104,7 @@ func (e *edit) commit(stdout io.Writer, summary string, allowed ...save.Range) e
 		}
 		return err
 	}
-	fmt.Fprintf(stdout, "Saved %s\nBackup of the original: %s\n", e.file.path, backup)
+	fmt.Fprintf(stdout, "%s\nSaved %s\nBackup of the original: %s\n", summary, e.file.path, backup)
 	return nil
 }
 

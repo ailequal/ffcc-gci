@@ -86,6 +86,16 @@ func mustRead(t *testing.T, path string) []byte {
 	return b
 }
 
+// backups returns the backup files next to the save at path.
+func backups(t *testing.T, path string) []string {
+	t.Helper()
+	found, err := filepath.Glob(path + ".*.bak")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return found
+}
+
 func fixClock(t *testing.T) {
 	t.Helper()
 	old := now
@@ -252,6 +262,40 @@ func TestSetGilInPlace(t *testing.T) {
 	}
 }
 
+// TestEditsInTheSameSecondKeepEveryBackup makes several edits while the
+// clock stands still, as a script that chains commands does. The name of
+// a backup carries the time to the second, so each further backup needs
+// a name of its own.
+func TestEditsInTheSameSecondKeepEveryBackup(t *testing.T) {
+	fixClock(t)
+	path, original := writeSample(t)
+	stamp := path + ".20261115-143005"
+
+	var before [][]byte // the save as each edit found it
+	for i, gil := range []string{"1000", "2000", "3000"} {
+		before = append(before, mustRead(t, path))
+		got := run("set-gil", "-slot", "1", "-char", "Alba", "-gil", gil, path)
+		if got.code != ExitOK {
+			t.Fatalf("edit %d: exit code = %d, stderr = %q", i+1, got.code, got.stderr)
+		}
+	}
+
+	if gil := gilOf(t, path, 0, 0); gil != 3000 {
+		t.Errorf("gil = %d, want 3000 from the last edit", gil)
+	}
+	for i, name := range []string{stamp + ".bak", stamp + "-2.bak", stamp + "-3.bak"} {
+		if !bytes.Equal(mustRead(t, name), before[i]) {
+			t.Errorf("%s is not the save as edit %d found it", filepath.Base(name), i+1)
+		}
+	}
+	if !bytes.Equal(before[0], original) {
+		t.Error("the first backup is not the original save")
+	}
+	if n := len(backups(t, path)); n != 3 {
+		t.Errorf("%d backups were written, want 3", n)
+	}
+}
+
 func TestSetGilToNewFile(t *testing.T) {
 	path, original := writeSample(t)
 	out := filepath.Join(t.TempDir(), "edited.gci")
@@ -273,6 +317,10 @@ func TestSetGilToNewFile(t *testing.T) {
 	again := run("set-gil", path, "-slot", "1", "-char", "1", "-gil", "7", "-o", out)
 	if again.code != ExitError || !strings.Contains(again.stderr, "exists") {
 		t.Errorf("overwriting -o: exit code = %d, stderr = %q", again.code, again.stderr)
+	}
+	// An edit that was not written is not announced.
+	if again.stdout != "" {
+		t.Errorf("stdout of the refused run = %q, want nothing", again.stdout)
 	}
 	if gil := gilOf(t, out, 0, 0); gil != save.MaxGil {
 		t.Errorf("gil in the new file = %d after the refused run, want %d", gil, save.MaxGil)
