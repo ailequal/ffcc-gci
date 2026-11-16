@@ -21,6 +21,7 @@ Pushing that commit to main publishes the release and creates the tag.
 - `set-gil` command that sets a character's gil, from 0 to 99,999,999.
 - `add-artifact` command that grants a character one of the game's 73 artifacts, and `artifacts` command that lists them by what they improve.
 - `add-item` command that adds Phoenix Down, materials, food and designs to a character's inventory, 164 items in all, and `items` command that lists them.
+- `menu` command that makes the same edits by asking questions instead of taking flags: it finds the save in Dolphin's folders, lists only what a character can receive, and runs the `set-gil`, `add-artifact` or `add-item` command after a confirmation. It is built into the program and needs nothing else installed.
 - `limits` command that shows every value the program can set, its accepted range and the evidence that the range is safe.
 - `help` command with the flags and examples of each command, `help -all` for every command at once and `help -markdown` for the reference in Markdown.
 - `version` command that prints the version, the Go toolchain and the platform.

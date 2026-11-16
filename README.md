@@ -20,6 +20,7 @@ itself. Everything else is refused.
 | Set a character's gil | `set-gil` | 0 to 99,999,999 |
 | Grant a character an artifact | `add-artifact` | The game's 73 artifacts |
 | Add items to a character's inventory | `add-item` | Phoenix Down, materials, food and designs: 164 items, up to 64 per character |
+| Make the same edits by answering questions | `menu` | The same values |
 
 Every edit was confirmed in the real game on a PAL save.
 
@@ -67,6 +68,51 @@ ffcc-gci items
 ffcc-gci add-item -slot 3 -char Alba -item Mythril -count 2 save.gci
 ```
 
+## The menu
+
+If you would rather not type flags, `ffcc-gci menu` asks for everything
+instead:
+
+```sh
+ffcc-gci menu save.gci    # or just "ffcc-gci menu" to pick the save from a list
+```
+
+```text
+╭───────────────────────────────────────╮
+│ ffcc-gci menu                         │
+│ Esc goes back one step, Ctrl+C quits. │
+│ Close Dolphin before editing.         │
+╰───────────────────────────────────────╯
+Save: /home/you/.local/share/dolphin-emu/GC/EUR/Card A/01-GCCP-FFCC.gci
+
+┃ Slot 3, Alba (Clavat): 200 gil, 10 of 64 items, 0 artifacts
+┃ > Set gil
+┃   Add an artifact
+┃   Add an item
+┃   Choose another character
+┃   Show the whole save
+┃   Show what can be edited
+┃   Quit
+
+↑ up • ↓ down • / filter • enter submit
+```
+
+- You pick the slot, the character and the change from lists. Long lists, such
+  as the 164 items, narrow down as you type a part of a name.
+- Only what the character can receive is listed: no artifact they already
+  have, no design they could not forge.
+- Without a save file, the menu offers the saves it finds in Dolphin's
+  European memory card folders, or lets you browse for one.
+- The menu changes nothing by itself. It shows the `set-gil`, `add-artifact`
+  or `add-item` command that makes the edit, asks you to confirm, and runs
+  that command. The checks and the backup are the same, and "No" is the
+  default answer.
+
+The menu is part of the program: there is nothing else to install. It needs a
+terminal to run in, so in a script use the other commands.
+
+## Reference
+
 **[docs/USAGE.md](docs/USAGE.md) is the full reference**: every command, flag
 and example, and the lists of all artifacts and items. The program prints the
 same information:
@@ -87,7 +133,9 @@ ffcc-gci help -all          # everything at once
   memory card manager.
 - **Know how to undo.** An edit first copies the original to
   `<save.gci>.<date-time>.bak` next to the save. To undo, copy that file back
-  over the save. With `-o <new file>` the save is not touched at all.
+  over the save. Every edit makes a backup of its own, so the oldest one is
+  the save as it was before any edit. With `-o <new file>` the save is not
+  touched at all.
 - **Expect old numbers in `info` after granting an artifact.** The game counts
   the artifact as soon as it loads the save, but `info` reads the hearts and
   stats the game last stored, so they change only after the game has saved
@@ -164,6 +212,16 @@ program prints and `docs/USAGE.md` are both rendered from that description,
 and a test fails when the document is out of date. Another test runs every
 example in it against a sample save.
 
+Everything that reads or writes a save uses only Go's standard library. The
+menu is drawn with [huh](https://github.com/charmbracelet/huh), which is
+compiled into the program.
+
+The menu has three layers of tests. Its logic is tested with scripted answers,
+and its questions with scripted key presses. The third layer runs the built
+program in a real terminal, a [tmux](https://github.com/tmux/tmux) session,
+and types into it; those tests are skipped when tmux is not installed, and
+`go test -short ./...` leaves them out.
+
 The tests build synthetic saves in memory. Real saves are never committed:
 they are personal data and embed the game's banner art. To also run the tests
 against a real PAL save, put one at `testdata/pal.gci` (git-ignored).
@@ -171,7 +229,7 @@ against a real PAL save, put one at `testdata/pal.gci` (git-ignored).
 | Path | Responsibility |
 |---|---|
 | `cmd/ffcc-gci` | Program entry point. |
-| `internal/cli` | Commands, help, output and file writing. |
+| `internal/cli` | Commands, help, output, file writing and the menu. |
 | `internal/gci` | The GCI container (header and blocks). |
 | `internal/save` | Save slots: decoding, checksum, character fields, limits, edit verification. |
 | `internal/save/savetest` | Synthetic saves for tests. |
@@ -210,7 +268,8 @@ version is only checked.
 The save format knowledge comes from
 [zcanann/FFCC-Decomp](https://github.com/zcanann/FFCC-Decomp). The GCI container
 layout and the folder-loading rules come from
-[Dolphin](https://github.com/dolphin-emu/dolphin).
+[Dolphin](https://github.com/dolphin-emu/dolphin). The menu is drawn with
+[huh](https://github.com/charmbracelet/huh) by Charm.
 
 Maintained by [ailequal](https://github.com/ailequal).
 
