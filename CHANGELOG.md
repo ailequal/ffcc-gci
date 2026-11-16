@@ -15,6 +15,11 @@ Pushing that commit to main publishes the release and creates the tag.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-16
+
+The first stable version. It edits saves of the European (PAL) version of the
+game, and only in the ways the game's own code shows to be safe.
+
 ### Added
 
 - `info` command that shows the four save slots of a PAL save and every character with gil, hearts, stats, items and artifacts, without changing the file.
@@ -31,4 +36,5 @@ Pushing that commit to main publishes the release and creates the tag.
 - Step-by-step guide in `docs/GUIDE.md`, usage reference in `docs/USAGE.md`, generated from the program's own help, and save format notes in `docs/SAVE_FORMAT.md`.
 - Release archives for Linux, macOS and Windows on amd64 and arm64, built by a workflow when a new version in this file reaches the `main` branch, smoke-tested on each platform and published with SHA-256 checksums and build provenance attestations.
 
-[unreleased]: https://github.com/ailequal/ffcc-gci/commits/main
+[unreleased]: https://github.com/ailequal/ffcc-gci/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/ailequal/ffcc-gci/releases/tag/v1.0.0

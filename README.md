@@ -12,6 +12,8 @@ supported only when the game's own code, as recovered by the
 game accepts it, and the result is a save the game could have produced by
 itself. Everything else is refused.
 
+> **AI usage disclosure**: This codebase was written with LLM-based tools. It is reviewed and tested, but bugs and odd patterns are possible. Review before relying on it in production.
+
 ## What it can do
 
 | Edit | Command | Accepted values |
