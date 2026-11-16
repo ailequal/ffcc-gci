@@ -1058,15 +1058,15 @@ func splitCommandLine(line string) []string {
 }
 
 // TestUsageDocIsUpToDate fails when docs/USAGE.md no longer matches the
-// reference the program renders. Regenerate it with "make docs".
+// reference the program renders. Regenerate it with "just docs".
 func TestUsageDocIsUpToDate(t *testing.T) {
 	const path = "../../docs/USAGE.md"
 	got, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("%v; create it with \"make docs\"", err)
+		t.Fatalf("%v; create it with \"just docs\"", err)
 	}
 	if string(got) != usageMarkdown() {
-		t.Errorf("%s is out of date; run \"make docs\" and commit the result", path)
+		t.Errorf("%s is out of date; run \"just docs\" and commit the result", path)
 	}
 
 	viaCommand := run("help", "-markdown")

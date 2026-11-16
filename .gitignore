@@ -1,6 +1,7 @@
-# Build output (make build, make dist)
+# Build output (just build, just dist) and the coverage profile (just test-cover)
 /bin/
 /dist/
+/coverage.out
 
 # Save files and their backups: personal data, and they embed the game's
 # banner art, so they never belong in the repository.

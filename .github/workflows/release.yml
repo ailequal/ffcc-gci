@@ -5,7 +5,7 @@
 #
 # A push to main is also a release when CHANGELOG.md has a new version, that
 # is, when the newest "## [X.Y.Z] - YYYY-MM-DD" section has no vX.Y.Z tag
-# yet. The workflow then builds the archives with "make dist", smoke-tests
+# yet. The workflow then builds the archives with "just dist", smoke-tests
 # every binary on its own platform, attests their build provenance and
 # publishes a GitHub release whose notes come from CHANGELOG.md. Publishing
 # the release creates the vX.Y.Z tag on the pushed commit.
@@ -22,6 +22,10 @@ on:
 
 # No token permissions by default; each job asks only for what it needs.
 permissions: {}
+
+env:
+  # The just release the recipes are run with: https://just.systems
+  JUST_VERSION: "1.59.0"
 
 # One run at a time per branch, so two pushes cannot release the same
 # version twice. A newer push to a pull request replaces the older run.
@@ -50,6 +54,10 @@ jobs:
           go-version-file: go.mod
           cache: false # release builds start from a clean cache
 
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: ${{ env.JUST_VERSION }}
+
       # The menu is also tested in a real terminal, which is a tmux session.
       - name: Install tmux
         run: command -v tmux || { sudo apt-get update && sudo apt-get install --yes tmux; }
@@ -57,10 +65,10 @@ jobs:
       - name: Vet, test, and check the formatting and the changelog
         env:
           FFCC_GCI_E2E: require # fail, rather than skip, without tmux
-        run: make check
+        run: just check
 
       - name: Lint
-        run: make lint-docker
+        run: just lint-docker
 
       - name: Decide whether this push is a release
         id: plan
@@ -94,7 +102,7 @@ jobs:
         if: steps.plan.outputs.release == 'true'
         env:
           TAG: ${{ steps.plan.outputs.tag }}
-        run: make dist VERSION="$TAG"
+        run: just version="$TAG" dist
 
       - name: Check the version stamped into the binaries
         if: steps.plan.outputs.release == 'true'

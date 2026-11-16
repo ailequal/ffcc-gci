@@ -4,7 +4,7 @@
 #
 # Usage: scripts/dist.sh <version>
 #
-# The release workflow runs this through "make dist".
+# "just dist" runs this, and so does the release workflow.
 set -eu
 
 version=${1:?usage: scripts/dist.sh <version>}

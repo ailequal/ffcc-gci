@@ -41,11 +41,14 @@ This makes `ffcc-gci` run from any folder:
 go install github.com/ailequal/ffcc-gci/cmd/ffcc-gci@latest
 ```
 
-**Or build it from a clone of this repository:**
+**Or build it from a clone of this repository**, with
+[just](https://just.systems) or with Go alone:
 
 ```sh
-make build      # writes bin/ffcc-gci
-make install    # or install it into Go's bin directory
+just build      # writes bin/ffcc-gci
+just install    # or install it into Go's bin directory
+
+go build -o bin/ffcc-gci ./cmd/ffcc-gci    # the same without just
 ```
 
 ## Quick start
@@ -199,13 +202,26 @@ save, restore the `.bak` file and include the output of `ffcc-gci info` on it.
 
 ## Development
 
+The development tasks are recipes in the [`justfile`](justfile), run with
+[just](https://just.systems) 1.55 or newer
+([how to install it](https://just.systems/man/en/packages.html)). `just` alone
+lists them by group:
+
 ```sh
-make check        # vet, tests, formatting and the changelog format; run it before every commit
-make lint         # golangci-lint, if you have it installed
-make lint-docker  # the same with the pinned release in Docker, as the workflow runs it
-make docs         # regenerate docs/USAGE.md after changing a command
-make dist         # cross-compile the release archives into dist/
+just                    # list every recipe
+just check              # format check, vet, tests and the changelog format; run it before every commit
+just run menu save.gci  # build the program and run it with these arguments
+just test-short         # the tests without the ones that need a terminal
+just test-terminal 30   # only the terminal tests, 30 times over
+just lint-docker        # golangci-lint, the pinned release in Docker, as the workflow runs it
+just docs               # regenerate docs/USAGE.md after changing a command
+just dist               # cross-compile the release archives into dist/
+just release-status     # say what a push to main would release
 ```
+
+The top of the `justfile` lists a few `just` options worth knowing, such as
+`just --show <recipe>` to read a recipe and `just --dry-run <recipe>` to see
+what it would run.
 
 Each command is described once, in `internal/cli/commands.go`. The help the
 program prints and `docs/USAGE.md` are both rendered from that description,
@@ -220,7 +236,7 @@ The menu has three layers of tests. Its logic is tested with scripted answers,
 and its questions with scripted key presses. The third layer runs the built
 program in a real terminal, a [tmux](https://github.com/tmux/tmux) session,
 and types into it; those tests are skipped when tmux is not installed, and
-`go test -short ./...` leaves them out.
+`just test-short` leaves them out.
 
 The tests build synthetic saves in memory. Real saves are never committed:
 they are personal data and embed the game's banner art. To also run the tests
@@ -256,7 +272,9 @@ has a version that is not tagged yet. To release:
 1. In `CHANGELOG.md`, add a `## [X.Y.Z] - YYYY-MM-DD` heading below
    `## [Unreleased]`, so that the unreleased entries now belong to the new
    version, and update the links at the bottom of the file.
-2. Commit and push to `main`.
+2. Run `just release-status` to see the version and the notes that would be
+   released.
+3. Commit and push to `main`.
 
 The workflow then builds the archives for every platform, runs each program on
 its own platform, publishes the GitHub release with the notes of that version

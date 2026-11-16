@@ -16,6 +16,6 @@ indent_style = tab
 [go.mod]
 indent_style = tab
 
-# make requires tabs in recipes.
-[Makefile]
-indent_style = tab
+# "just --fmt" indents recipes with four spaces.
+[justfile]
+indent_size = 4
