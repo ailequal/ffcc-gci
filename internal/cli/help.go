@@ -22,8 +22,9 @@ var beforeYouStart = []string{
 		"memory while a game runs and writes it back, which would undo the edit.",
 	"The save Dolphin uses is a .gci file in its GCI folder, usually GC/EUR/Card A/ inside " +
 		"Dolphin's user directory.",
-	"An edit in place first copies the original to <save.gci>.<date-time>.bak. To undo an " +
-		"edit, copy that backup back over the save.",
+	"An edit in place first copies the original to <save.gci>.<date-time>.bak. Every edit " +
+		"makes a backup of its own, so the oldest one is the save before any edit. To undo, " +
+		"copy a backup back over the save.",
 }
 
 // exitCodes documents the process exit codes.
@@ -161,7 +162,8 @@ func usageMarkdown() string {
 	fmt.Fprintf(&b, "ffcc-gci is a %s.\n\n", tagline)
 	b.WriteString("This page lists every command, flag and accepted value. The program prints the same " +
 		"information with `ffcc-gci help -all`, and the help of one command with " +
-		"`ffcc-gci help <command>`.\n\n")
+		"`ffcc-gci help <command>`. For step-by-step scenarios, from finding the save to undoing " +
+		"an edit, see the [guide](GUIDE.md).\n\n")
 
 	b.WriteString("## Before you start\n\n")
 	for _, line := range beforeYouStart {
@@ -219,7 +221,7 @@ func usageMarkdown() string {
 
 	b.WriteString("\n## Artifacts\n\n")
 	fmt.Fprintf(&b, "The %d artifacts `add-artifact` can grant, with the game's description of each. "+
-		"`ffcc-gci artifacts` prints this list.\n", save.ArtifactLimit.Max-save.ArtifactLimit.Min+1)
+		"`ffcc-gci artifacts` prints this list. %s\n", save.ArtifactLimit.Max-save.ArtifactLimit.Min+1, namesNote)
 	group := ""
 	for id := save.ArtifactLimit.Min; id <= save.ArtifactLimit.Max; id++ {
 		if effect, _ := itemdb.ArtifactEffect(id); effect != group {
@@ -232,7 +234,7 @@ func usageMarkdown() string {
 
 	b.WriteString("\n## Items\n\n")
 	fmt.Fprintf(&b, "The %d items `add-item` can add. `ffcc-gci items` prints this list. Everything "+
-		"else in the game's item table is refused for safety.\n", len(addableIDs()))
+		"else in the game's item table is refused for safety. %s\n", len(addableIDs()), namesNote)
 	kind := itemdb.KindOther
 	for _, id := range addableIDs() {
 		if k := itemdb.KindOf(id); k != kind {

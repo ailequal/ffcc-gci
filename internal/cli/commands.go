@@ -44,10 +44,15 @@ var (
 	outputFlagDoc = flagDoc{"o", "<new file>", "Write the result to this new file and leave the save untouched."}
 )
 
+// namesNote says which language the item names are in.
+const namesNote = "The names are the English ones of the PAL game. A game played in another " +
+	"language shows its own names, but the item IDs are the same in every language."
+
 // editNotes are the notes shared by every command that changes a save.
 var editNotes = []string{
 	"Without -o the save is edited in place, and the original is first copied to a backup " +
-		"next to it, named <save.gci>.<date-time>.bak.",
+		"next to it, named <save.gci>.<date-time>.bak. Every edit makes a backup of its own; a " +
+		"further one within the same second is numbered, as in <date-time>-2.bak.",
 	"Close Dolphin before editing: it rewrites the save while a game runs.",
 }
 
@@ -141,6 +146,7 @@ var commands = []*command{
 		notes: []string{
 			"The artifacts are grouped by what they improve, each with its item ID and the " +
 				"game's description. With text, only artifacts whose name contains it are listed.",
+			namesNote,
 		},
 		examples: []example{
 			{"List every artifact", "ffcc-gci artifacts"},
@@ -184,6 +190,7 @@ var commands = []*command{
 				"item ID. With text, only items whose name contains it are listed.",
 			"Equipment, magicite, seeds, story items and unused entries of the game's item " +
 				"table are left out for safety and cannot be added.",
+			namesNote,
 		},
 		examples: []example{
 			{"List every item that can be added", "ffcc-gci items"},

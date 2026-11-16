@@ -4,14 +4,14 @@
 
 ffcc-gci is a save editor for Final Fantasy Crystal Chronicles (GameCube, PAL).
 
-This page lists every command, flag and accepted value. The program prints the same information with `ffcc-gci help -all`, and the help of one command with `ffcc-gci help <command>`.
+This page lists every command, flag and accepted value. The program prints the same information with `ffcc-gci help -all`, and the help of one command with `ffcc-gci help <command>`. For step-by-step scenarios, from finding the save to undoing an edit, see the [guide](GUIDE.md).
 
 ## Before you start
 
 - Only saves of the European (PAL) version of the game are supported. Others are refused.
 - Close Dolphin, or at least stop the game, before editing. Dolphin keeps the save in memory while a game runs and writes it back, which would undo the edit.
 - The save Dolphin uses is a .gci file in its GCI folder, usually GC/EUR/Card A/ inside Dolphin's user directory.
-- An edit in place first copies the original to \<save.gci\>.\<date-time\>.bak. To undo an edit, copy that backup back over the save.
+- An edit in place first copies the original to \<save.gci\>.\<date-time\>.bak. Every edit makes a backup of its own, so the oldest one is the save before any edit. To undo, copy a backup back over the save.
 
 ## Commands
 
@@ -90,7 +90,7 @@ ffcc-gci set-gil -slot <1-4> -char <name or 1-8> -gil <amount> [-o <new file>] <
 | `-gil <amount>` | New amount of gil, 0 to 99999999. This is the range the game itself keeps gil in; anything outside it is refused. |
 | `-o <new file>` | Write the result to this new file and leave the save untouched. |
 
-Without -o the save is edited in place, and the original is first copied to a backup next to it, named \<save.gci\>.\<date-time\>.bak.
+Without -o the save is edited in place, and the original is first copied to a backup next to it, named \<save.gci\>.\<date-time\>.bak. Every edit makes a backup of its own; a further one within the same second is numbered, as in \<date-time\>-2.bak.
 
 Close Dolphin before editing: it rewrites the save while a game runs.
 
@@ -126,7 +126,7 @@ An artifact is either owned or not, so it cannot be granted twice: if the charac
 
 The game works out strength, magic, defence, hearts and command slots from the artifacts by itself, so the new values are there as soon as the save is loaded. "ffcc-gci info" reads the numbers the game last stored, and keeps showing the old ones until the game has saved again.
 
-Without -o the save is edited in place, and the original is first copied to a backup next to it, named \<save.gci\>.\<date-time\>.bak.
+Without -o the save is edited in place, and the original is first copied to a backup next to it, named \<save.gci\>.\<date-time\>.bak. Every edit makes a backup of its own; a further one within the same second is numbered, as in \<date-time\>-2.bak.
 
 Close Dolphin before editing: it rewrites the save while a game runs.
 
@@ -152,6 +152,8 @@ ffcc-gci artifacts [text]
 ```
 
 The artifacts are grouped by what they improve, each with its item ID and the game's description. With text, only artifacts whose name contains it are listed.
+
+The names are the English ones of the PAL game. A game played in another language shows its own names, but the item IDs are the same in every language.
 
 Examples:
 
@@ -181,7 +183,7 @@ ffcc-gci add-item -slot <1-4> -char <name or 1-8> -item <name> [-count <n>] [-o 
 
 Designs have two extra rules. A design is added only once, and only if it is for anyone or for the character's own tribe. Designs for men or for women are not supported.
 
-Without -o the save is edited in place, and the original is first copied to a backup next to it, named \<save.gci\>.\<date-time\>.bak.
+Without -o the save is edited in place, and the original is first copied to a backup next to it, named \<save.gci\>.\<date-time\>.bak. Every edit makes a backup of its own; a further one within the same second is numbered, as in \<date-time\>-2.bak.
 
 Close Dolphin before editing: it rewrites the save while a game runs.
 
@@ -212,6 +214,8 @@ ffcc-gci items [text]
 The items are grouped as Phoenix Down, materials, food and designs, each with its item ID. With text, only items whose name contains it are listed.
 
 Equipment, magicite, seeds, story items and unused entries of the game's item table are left out for safety and cannot be added.
+
+The names are the English ones of the PAL game. A game played in another language shows its own names, but the item IDs are the same in every language.
 
 Examples:
 
@@ -311,7 +315,7 @@ Every value the program can set has a fixed range, taken from the game's own cod
 
 ## Artifacts
 
-The 73 artifacts `add-artifact` can grant, with the game's description of each. `ffcc-gci artifacts` prints this list.
+The 73 artifacts `add-artifact` can grant, with the game's description of each. `ffcc-gci artifacts` prints this list. The names are the English ones of the PAL game. A game played in another language shows its own names, but the item IDs are the same in every language.
 
 ### Strength
 
@@ -418,7 +422,7 @@ The 73 artifacts `add-artifact` can grant, with the game's description of each. 
 
 ## Items
 
-The 164 items `add-item` can add. `ffcc-gci items` prints this list. Everything else in the game's item table is refused for safety.
+The 164 items `add-item` can add. `ffcc-gci items` prints this list. Everything else in the game's item table is refused for safety. The names are the English ones of the PAL game. A game played in another language shows its own names, but the item IDs are the same in every language.
 
 ### Phoenix Down
 
