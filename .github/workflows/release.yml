@@ -50,7 +50,13 @@ jobs:
           go-version-file: go.mod
           cache: false # release builds start from a clean cache
 
+      # The menu is also tested in a real terminal, which is a tmux session.
+      - name: Install tmux
+        run: command -v tmux || { sudo apt-get update && sudo apt-get install --yes tmux; }
+
       - name: Vet, test, and check the formatting and the changelog
+        env:
+          FFCC_GCI_E2E: require # fail, rather than skip, without tmux
         run: make check
 
       - name: Lint
@@ -168,6 +174,15 @@ jobs:
           set -e
           echo "$out"
           [[ $code -eq 1 && $out == "ffcc-gci: "* ]] || { echo "::error::unexpected result ($code)"; exit 1; }
+
+          # The menu needs a terminal, which a workflow does not have: it
+          # must say so and fail, not wait for keys.
+          set +e
+          out=$("./$bin" menu 2>&1 </dev/null)
+          code=$?
+          set -e
+          echo "$out"
+          [[ $code -eq 1 && $out == *"in a terminal"* ]] || { echo "::error::unexpected result ($code)"; exit 1; }
 
   release:
     name: Publish the release
