@@ -17,12 +17,16 @@ Pushing that commit to main publishes the release and creates the tag.
 
 ### Changed
 
-- Bubble Tea, the library that draws the menu, updated from 2.1.1 to 2.1.2.
+- Bubble Tea, the library that draws the menu, updated from 2.1.1 to 2.1.3.
 - Go 1.27.4 required to build from source, up from 1.27.3; the release archives are built with it.
 
 ### Fixed
 
 - Menu tests that failed on macOS.
+
+### Security
+
+- `menu` no longer ends with a panic when the folder it browses holds a file whose name has a malformed escape sequence.
 
 ## [1.0.0] - 2026-11-16
 

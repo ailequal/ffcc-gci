@@ -392,6 +392,29 @@ func TestMenuFindsTheSaveInATerminal(t *testing.T) {
 	})
 }
 
+// TestMenuListsAHostileFileNameInATerminal browses a folder with a file
+// whose name holds an escape sequence of more parameters than a terminal
+// takes. Bubble Tea before v2.1.3 ended the program with a panic when it
+// drew such a name.
+func TestMenuListsAHostileFileNameInATerminal(t *testing.T) {
+	dir := tempDir(t)
+	hostile := "a\x1b[" + strings.Repeat("1;", 40) + "1m.gci"
+	if err := os.WriteFile(filepath.Join(dir, hostile), []byte("not a save"), 0o644); err != nil {
+		t.Skipf("the file system refuses the name: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "save.gci"), sampleGCI(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := openTerminal(t, dir, nil, "menu")
+
+	s.see(titled("Pick the save file"), "save.gci")
+	s.press("Escape")
+	final := s.see("EXIT=")
+	if !strings.Contains(final, "EXIT=0") || strings.Contains(final, "panic") {
+		t.Errorf("the menu did not end cleanly:\n%s", final)
+	}
+}
+
 // TestMenuRefusesInATerminal checks what the user sees when the menu
 // cannot start.
 func TestMenuRefusesInATerminal(t *testing.T) {
