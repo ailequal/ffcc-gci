@@ -15,6 +15,8 @@ Pushing that commit to main publishes the release and creates the tag.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-25
+
 ### Changed
 
 - Bubble Tea, the library that draws the menu, updated from 2.1.1 to 2.1.3.
@@ -49,5 +51,6 @@ game, and only in the ways the game's own code shows to be safe.
 - Step-by-step guide in `docs/GUIDE.md`, usage reference in `docs/USAGE.md`, generated from the program's own help, and save format notes in `docs/SAVE_FORMAT.md`.
 - Release archives for Linux, macOS and Windows on amd64 and arm64, built by a workflow when a new version in this file reaches the `main` branch, smoke-tested on each platform and published with SHA-256 checksums and build provenance attestations.
 
-[unreleased]: https://github.com/ailequal/ffcc-gci/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/ailequal/ffcc-gci/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/ailequal/ffcc-gci/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/ailequal/ffcc-gci/releases/tag/v1.0.0
