@@ -20,6 +20,10 @@ Pushing that commit to main publishes the release and creates the tag.
 - Bubble Tea, the library that draws the menu, updated from 2.1.1 to 2.1.2.
 - Go 1.27.4 required to build from source, up from 1.27.3; the release archives are built with it.
 
+### Fixed
+
+- Menu tests that failed on macOS.
+
 ## [1.0.0] - 2026-11-16
 
 The first stable version. It edits saves of the European (PAL) version of the

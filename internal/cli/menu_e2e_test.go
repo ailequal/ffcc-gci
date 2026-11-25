@@ -190,7 +190,7 @@ func titled(title string) string { return "┃ " + title }
 // TestMenuInATerminal makes every kind of edit through the menu, typing
 // as a user would, and then reads the save back.
 func TestMenuInATerminal(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempDir(t)
 	path := filepath.Join(dir, "save.gci")
 	original := sampleGCI()
 	if err := os.WriteFile(path, original, 0o644); err != nil {
@@ -342,8 +342,14 @@ func TestMenuInATerminal(t *testing.T) {
 // with a save in Dolphin's folder and once with none.
 func TestMenuFindsTheSaveInATerminal(t *testing.T) {
 	t.Run("in Dolphin's folder", func(t *testing.T) {
-		dir := t.TempDir()
-		card := filepath.Join(dir, ".local", "share", "dolphin-emu", "GC", "EUR", "Card A")
+		dir := tempDir(t)
+		// Where Dolphin keeps its user data below the home directory
+		// when no variable says otherwise.
+		user := filepath.Join(".local", "share", "dolphin-emu")
+		if runtime.GOOS == "darwin" {
+			user = filepath.Join("Library", "Application Support", "Dolphin")
+		}
+		card := filepath.Join(dir, user, "GC", "EUR", "Card A")
 		if err := os.MkdirAll(card, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -353,7 +359,7 @@ func TestMenuFindsTheSaveInATerminal(t *testing.T) {
 		s := openTerminal(t, dir, nil, "menu")
 
 		s.see(titled("Which save? These were found in Dolphin's folders."),
-			"> ~/.local/share/dolphin-emu/GC/EUR/Card A/01-GCCP-FFCC.gci", "  Browse for another file...")
+			"> "+filepath.Join("~", user, "GC", "EUR", "Card A", "01-GCCP-FFCC.gci"), "  Browse for another file...")
 		s.press("Enter")
 		s.see("Save: "+filepath.Join(card, "01-GCCP-FFCC.gci"), titled("Which slot?"))
 		s.gone("Which save?")
@@ -362,7 +368,7 @@ func TestMenuFindsTheSaveInATerminal(t *testing.T) {
 	})
 
 	t.Run("browsing", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := tempDir(t)
 		for name, content := range map[string][]byte{
 			"a-notes.txt": []byte("notes"),
 			"save.gci":    sampleGCI(),

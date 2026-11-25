@@ -47,12 +47,24 @@ func sampleGCI() []byte {
 	)
 }
 
+// tempDir returns a new temporary directory by its real path, which is the
+// one the program prints: it resolves the symbolic links of a save's path,
+// and on macOS the temporary directory is reached through one.
+func tempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
 // writeSample writes the sample save to a temporary directory and returns
 // its path and contents.
 func writeSample(t *testing.T) (path string, content []byte) {
 	t.Helper()
 	content = sampleGCI()
-	path = filepath.Join(t.TempDir(), "save.gci")
+	path = filepath.Join(tempDir(t), "save.gci")
 	if err := os.WriteFile(path, content, 0o644); err != nil {
 		t.Fatal(err)
 	}
