@@ -15,6 +15,10 @@ Pushing that commit to main publishes the release and creates the tag.
 
 ## [Unreleased]
 
+### Changed
+
+- Bubble Tea, the library that draws the menu, updated from 2.1.1 to 2.1.2.
+
 ## [1.0.0] - 2026-11-16
 
 The first stable version. It edits saves of the European (PAL) version of the
