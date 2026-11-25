@@ -36,7 +36,7 @@ recalculates them. Artifacts are the way to raise them, as in normal play.
 program for Linux, macOS and Windows. Unpack the archive for your system and
 run `ffcc-gci help`. Each release lists how to verify the download.
 
-**Or install it with Go.** You need [Go](https://go.dev/dl/) 1.27.3 or newer.
+**Or install it with Go.** You need [Go](https://go.dev/dl/) 1.27.4 or newer.
 This makes `ffcc-gci` run from any folder:
 
 ```sh
