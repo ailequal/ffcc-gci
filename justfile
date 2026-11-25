@@ -30,7 +30,7 @@ ldflags := "-s -w -X github.com/ailequal/ffcc-gci/internal/cli.Version=" + versi
 
 # golangci-lint release used by lint-docker and by the workflow.
 
-golangci_lint_version := "v2.14.0"
+golangci_lint_version := "v2.15.0"
 
 # List the recipes
 [private]
